@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+.venv/
+node_modules/
+dist/
+.env
+.DS_Store
+data/cached_pages/*.json
+data/faiss_index/*
+data/sessions/*
+.faiss_index
+.env.example
+.claude
