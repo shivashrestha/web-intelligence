@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Sparkles, SmilePlus, Globe, BarChart3, FileText, Image, RotateCcw, Palette, MessageSquare, Info, Zap, ArrowRight } from 'lucide-react'
 import logo from '../logo.png'
+import { useSEO } from './hooks/useSEO'
 
 import AppHeader from './components/AppHeader'
 import Loader from './components/Loader'
@@ -514,6 +515,11 @@ export default function App() {
   const [showCollaborate, setShowCollaborate] = useState(false)
 
   const sessionReady = appState === 'ready' && !!sessionId
+
+  useSEO({
+    title: sessionReady && sessionTitle ? sessionTitle : null,
+    image: siteTheme?.og_image || null,
+  })
 
   // Apply site theme CSS variables only when toggle is ON
   useEffect(() => {

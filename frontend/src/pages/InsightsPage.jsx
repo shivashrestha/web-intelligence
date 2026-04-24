@@ -6,6 +6,7 @@ import {
   Globe, ExternalLink, RefreshCw,
 } from 'lucide-react'
 import { loadInsights, loadSessions } from '../services/api'
+import { useSEO } from '../hooks/useSEO'
 
 const CARD_META = {
   'Overview':        { Icon: Sparkles,   color: '#00D4FF' },
@@ -142,6 +143,12 @@ export default function InsightsPage() {
   const accent = meta?.theme?.accent
   const favicon = meta?.theme?.favicon
   const ogImage = meta?.theme?.og_image
+
+  useSEO({
+    title: meta?.title || null,
+    image: ogImage || null,
+    url: `/insights/${sessionId}`,
+  })
 
   return (
     <div className="min-h-screen bg-cyber-bg bg-grid text-white">

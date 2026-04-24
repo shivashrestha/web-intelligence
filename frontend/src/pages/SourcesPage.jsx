@@ -5,6 +5,7 @@ import {
   ArrowLeft, Globe, ExternalLink, FileText, Hash, ChevronDown, ChevronUp, RefreshCw,
 } from 'lucide-react'
 import { loadSources, loadSessions } from '../services/api'
+import { useSEO } from '../hooks/useSEO'
 
 function domainOf(url) {
   try { return new URL(url).hostname.replace(/^www\./, '') } catch { return url }
@@ -186,6 +187,12 @@ export default function SourcesPage() {
   })
 
   const totalChunks = Object.values(sourceMap).reduce((s, arr) => s + arr.length, 0)
+
+  useSEO({
+    title: meta?.title ? `${meta.title} — Sources` : 'Sources',
+    image: meta?.theme?.og_image || null,
+    url: `/sources/${sessionId}`,
+  })
 
   return (
     <div className="min-h-screen bg-cyber-bg bg-grid text-white">
