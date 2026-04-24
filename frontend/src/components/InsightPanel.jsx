@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Sparkles, TrendingUp, Zap, Users, Cpu, Tag, ThumbsUp,
-  Loader2, X, ChevronRight, Shield,
+  Loader2, X, ChevronRight, Shield, ClipboardList,
 } from 'lucide-react'
 
 const CARD_META = {
@@ -90,23 +90,22 @@ function computeReport(structured, security) {
 
   // Security bonus: up to 27 pts based on factual header checks
   let secBonus = 0
+  const secDetails = []
   if (security) {
-    if (security.https_enabled)        secBonus += 8
-    if (security.ssl_valid)            secBonus += 4
-    if (security.has_csp)              secBonus += 6
-    if (security.has_x_frame_options)  secBonus += 4
-    if (security.has_x_xss_protection) secBonus += 2
-    if (security.cookies_secure)       secBonus += 2
-    if (security.cookies_httponly)     secBonus += 1
+    if (security.https_enabled)        { secBonus += 8; secDetails.push({ label: 'HTTPS Enabled', pts: 8 }) }
+    if (security.ssl_valid)            { secBonus += 4; secDetails.push({ label: 'Valid SSL Certificate', pts: 4 }) }
+    if (security.has_csp)              { secBonus += 6; secDetails.push({ label: 'Content-Security-Policy', pts: 6 }) }
+    if (security.has_x_frame_options)  { secBonus += 4; secDetails.push({ label: 'X-Frame-Options', pts: 4 }) }
+    if (security.has_x_xss_protection) { secBonus += 2; secDetails.push({ label: 'X-XSS-Protection', pts: 2 }) }
+    if (security.cookies_secure)       { secBonus += 2; secDetails.push({ label: 'Secure Cookie Flag', pts: 2 }) }
+    if (security.cookies_httponly)     { secBonus += 1; secDetails.push({ label: 'HttpOnly Cookie Flag', pts: 1 }) }
   }
 
-  const score = Math.min(95, Math.max(15,
-    40
-    + Math.min(pros.length * 6, 18)
-    - Math.min(cons.length * 5, 15)
-    + Math.min(features.length * 3, 12)
-    + secBonus
-  ))
+  const featureScore = Math.min(features.length * 3, 12)
+  const proScore     = Math.min(pros.length * 6, 18)
+  const conPenalty   = Math.min(cons.length * 5, 15)
+
+  const score = Math.min(95, Math.max(15, 40 + proScore - conPenalty + featureScore + secBonus))
 
   const verdict =
     score >= 78 ? 'Strong platform with clear value proposition and differentiated positioning.'
@@ -121,17 +120,194 @@ function computeReport(structured, security) {
     pricing[0]   && { label: 'Pricing Signal', value: pricing[0] },
   ].filter(Boolean).slice(0, 3)
 
-  return { pros, cons, score, verdict, signals }
+  const breakdown = [
+    {
+      label: 'Base Signal', score: 40, max: 40, color: '#00D4FF',
+      desc: 'Fixed floor for any accessible, indexable page',
+      isBase: true,
+    },
+    {
+      label: 'Security Posture', score: secBonus, max: 27, color: '#10FFA8',
+      desc: 'HTTPS · SSL · CSP · X-Frame-Options · XSS Protection · Cookie Flags',
+      sub: secDetails,
+    },
+    {
+      label: 'Value Signals', score: proScore, max: 18, color: '#8B5CF6',
+      desc: `Up to 3 identified strengths × 6 pts each`,
+    },
+    {
+      label: 'Content Quality', score: featureScore, max: 12, color: '#00D4FF',
+      desc: `Up to 4 detected features × 3 pts each`,
+    },
+    {
+      label: 'Risk Adjustment', score: -conPenalty, max: 0, color: '#FF4D6D',
+      desc: `Up to 3 risk factors × −5 pts each`,
+      isRisk: true,
+    },
+  ]
+
+  return { pros, cons, score, verdict, signals, breakdown }
+}
+
+// ── Score breakdown modal ─────────────────────────────────────────────────
+function ScoreBreakdownModal({ breakdown, totalScore, onClose }) {
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [onClose])
+
+  const scoreColor = totalScore >= 75 ? '#10FFA8' : totalScore >= 52 ? '#00D4FF' : totalScore >= 36 ? '#F59E0B' : '#FF4D6D'
+
+  return (
+    <motion.div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      onClick={onClose}
+      style={{ background: 'rgba(3,11,24,0.88)', backdropFilter: 'blur(14px)' }}
+    >
+      <motion.div
+        className="relative w-full max-w-md rounded-3xl overflow-hidden"
+        initial={{ scale: 0.88, y: 24, opacity: 0 }}
+        animate={{ scale: 1, y: 0, opacity: 1 }}
+        exit={{ scale: 0.92, y: 12, opacity: 0 }}
+        transition={{ type: 'spring', stiffness: 380, damping: 28 }}
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          background: 'rgba(10,22,40,0.97)',
+          border: '1px solid rgba(0,212,255,0.25)',
+          boxShadow: '0 0 70px rgba(0,212,255,0.1), 0 28px 80px rgba(0,0,0,0.75)',
+        }}
+      >
+        {/* Header */}
+        <div className="px-6 pt-6 pb-4" style={{ background: 'linear-gradient(135deg, rgba(0,212,255,0.1) 0%, transparent 100%)' }}>
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-2xl flex items-center justify-center shrink-0"
+                style={{ backgroundColor: 'rgba(0,212,255,0.12)', border: '1px solid rgba(0,212,255,0.3)' }}>
+                <ClipboardList className="h-5 w-5 text-cyber-cyan" />
+              </div>
+              <div>
+                <h2 className="font-heading font-bold text-[1.05rem] text-white leading-tight">Score Methodology</h2>
+                <p className="text-[10px] text-cyber-muted mt-0.5">How the Intelligence Report score is calculated</p>
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              className="shrink-0 h-8 w-8 rounded-xl flex items-center justify-center text-cyber-muted hover:text-white hover:bg-white/10 transition-all"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          {/* Total score chip */}
+          <div className="flex items-center gap-2 mt-4">
+            <span className="text-[10px] text-cyber-muted">Total Score</span>
+            <span
+              className="font-bold text-[1.1rem] leading-none"
+              style={{ color: scoreColor }}
+            >{totalScore}</span>
+            <span className="text-[10px] text-cyber-muted">/ 95 max</span>
+          </div>
+        </div>
+
+        <div className="h-px mx-6" style={{ background: 'linear-gradient(90deg, rgba(0,212,255,0.3), transparent)' }} />
+
+        {/* Categories */}
+        <div className="px-6 py-5 space-y-4 max-h-[60vh] overflow-y-auto">
+          {breakdown.map((cat, i) => {
+            const pct = cat.isRisk
+              ? 0
+              : cat.max > 0 ? (cat.score / cat.max) * 100 : 100
+            const displayScore = cat.isRisk ? cat.score : `+${cat.score}`
+
+            return (
+              <motion.div
+                key={cat.label}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: i * 0.07 }}
+              >
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-[11px] font-semibold text-white">{cat.label}</span>
+                  <span
+                    className="text-[11px] font-bold tabular-nums"
+                    style={{ color: cat.isRisk ? '#FF4D6D' : cat.color }}
+                  >
+                    {displayScore} <span className="text-cyber-muted font-normal text-[9px]">/ {cat.max}</span>
+                  </span>
+                </div>
+                <p className="text-[9px] text-cyber-muted mb-1.5 leading-4">{cat.desc}</p>
+                {!cat.isRisk && (
+                  <div className="h-1 rounded-full bg-white/5 overflow-hidden">
+                    <motion.div
+                      className="h-full rounded-full"
+                      style={{ backgroundColor: cat.color }}
+                      initial={{ width: 0 }}
+                      animate={{ width: `${pct}%` }}
+                      transition={{ duration: 0.8, delay: 0.1 + i * 0.07, ease: 'easeOut' }}
+                    />
+                  </div>
+                )}
+                {cat.isRisk && cat.score < 0 && (
+                  <div className="h-1 rounded-full bg-white/5 overflow-hidden">
+                    <motion.div
+                      className="h-full rounded-full bg-red-400/60"
+                      initial={{ width: 0 }}
+                      animate={{ width: `${(Math.abs(cat.score) / 15) * 100}%` }}
+                      transition={{ duration: 0.8, delay: 0.1 + i * 0.07, ease: 'easeOut' }}
+                    />
+                  </div>
+                )}
+                {/* Security sub-items */}
+                {cat.sub?.length > 0 && (
+                  <div className="mt-2 pl-2 space-y-1">
+                    {cat.sub.map((s) => (
+                      <div key={s.label} className="flex items-center justify-between text-[9px]">
+                        <span className="text-cyber-muted">{s.label}</span>
+                        <span style={{ color: cat.color }}>+{s.pts}</span>
+                      </div>
+                    ))}
+                    {Array.from({ length: 7 - cat.sub.length }).map((_, idx) => {
+                      const missing = [
+                        'HTTPS Enabled', 'Valid SSL Certificate', 'Content-Security-Policy',
+                        'X-Frame-Options', 'X-XSS-Protection', 'Secure Cookie Flag', 'HttpOnly Cookie Flag',
+                      ].filter((l) => !cat.sub.find((s) => s.label === l))[idx]
+                      return missing ? (
+                        <div key={missing} className="flex items-center justify-between text-[9px]">
+                          <span className="text-white/25">{missing}</span>
+                          <span className="text-white/20">+0</span>
+                        </div>
+                      ) : null
+                    })}
+                  </div>
+                )}
+              </motion.div>
+            )
+          })}
+        </div>
+
+        <div className="px-6 pb-5 pt-1 border-t border-white/5">
+          <p className="text-[9px] text-cyber-muted text-center leading-4">
+            Security scores are factual (HTTP header checks). Content scores are derived from AI analysis.
+            <br />Press Esc or click outside to close.
+          </p>
+        </div>
+      </motion.div>
+    </motion.div>
+  )
 }
 
 function AnalystReport({ structured, accent, security }) {
-  const { pros, cons, score, verdict, signals } = computeReport(structured, security)
+  const { pros, cons, score, verdict, signals, breakdown } = computeReport(structured, security)
   const scoreColor = score >= 75 ? '#10FFA8' : score >= 52 ? '#00D4FF' : score >= 36 ? '#F59E0B' : '#FF4D6D'
-  const total = pros.length + cons.length
-  // Balance driven by score (not just pros/cons ratio) so it reflects security + content quality
   const balance = score / 100
+  const [showBreakdown, setShowBreakdown] = useState(false)
 
   return (
+    <>
     <motion.div
       className="rounded-2xl p-5 mb-5"
       style={{
@@ -157,6 +333,13 @@ function AnalystReport({ structured, accent, security }) {
             >
               {score >= 78 ? 'Strong' : score >= 60 ? 'Solid' : score >= 42 ? 'Mixed' : 'At Risk'}
             </span>
+            <button
+              onClick={() => setShowBreakdown(true)}
+              title="View score methodology"
+              className="ml-auto h-5 w-5 rounded-lg flex items-center justify-center text-cyber-muted hover:text-cyber-cyan hover:bg-cyber-cyan/10 transition-all"
+            >
+              <ClipboardList className="h-3 w-3" />
+            </button>
           </div>
           <p className="text-[11px] text-slate-400 leading-5 italic">"{verdict}"</p>
         </div>
@@ -211,6 +394,17 @@ function AnalystReport({ structured, accent, security }) {
         </div>
       )}
     </motion.div>
+
+    <AnimatePresence>
+      {showBreakdown && (
+        <ScoreBreakdownModal
+          breakdown={breakdown}
+          totalScore={score}
+          onClose={() => setShowBreakdown(false)}
+        />
+      )}
+    </AnimatePresence>
+    </>
   )
 }
 

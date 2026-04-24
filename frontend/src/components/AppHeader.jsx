@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Globe, Clock, ChevronDown, ChevronRight, Trash2, Search, Loader2 } from 'lucide-react'
+import { Globe, Clock, ChevronDown, ChevronRight, Trash2, Search, Loader2, Sparkles, SmilePlus} from 'lucide-react'
+import logo from '../../logo.png'
 
 function SessionRow({ session, onClick, onDelete }) {
   const domain = (session.urls || []).map((u) => {
@@ -60,7 +61,7 @@ function SessionRow({ session, onClick, onDelete }) {
 export default function AppHeader({
   url, onUrlChange, onProcess, processing,
   sessions, onLoadSession, onDeleteSession, onClearSessions,
-  error, siteTheme,
+  error, siteTheme, onCollaborateClick, onReset,
 }) {
   const [sessionsOpen, setSessionsOpen] = useState(false)
   const dropdownRef = useRef(null)
@@ -91,23 +92,16 @@ export default function AppHeader({
         <div className="flex items-center gap-3 px-5 h-[78px]">
 
           {/* Brand */}
-          <div className="flex items-center gap-2.5 shrink-0">
-            <div
-              className="h-9 w-9 rounded-xl flex items-center justify-center shadow-glow-sm transition-all duration-500"
-              style={{
-                background: accent
-                  ? `linear-gradient(135deg, ${accent} 0%, ${accent}99 100%)`
-                  : 'linear-gradient(135deg, #00D4FF 0%, #8B5CF6 100%)',
-                boxShadow: accent ? `0 0 12px ${accent}55` : undefined,
-              }}
-            >
-              <Globe className="h-4 w-4 text-[#030B18]" />
-            </div>
-            <div className="hidden lg:block">
+          <button
+            onClick={onReset}
+            className="flex items-center gap-2.5 shrink-0 rounded-xl px-1 py-1 hover:opacity-80 transition-opacity"
+          >
+            <img src={logo} alt="Web Intelligence" className="h-20 w-20 object-contain shrink-0" />
+            <div className="hidden lg:block text-left">
               <h1 className="font-heading font-bold text-white text-[14px] leading-tight">Web Intelligence</h1>
               <p className="text-[10px] text-slate-500">Website analyst</p>
             </div>
-          </div>
+          </button>
 
           <div className="h-5 w-px bg-white/8 shrink-0" />
 
@@ -139,6 +133,39 @@ export default function AppHeader({
               }
             </button>
           </form>
+
+          {/* Collaborate button */}
+          <motion.button
+            onClick={onCollaborateClick}
+            className="shrink-0 flex items-center gap-2 rounded-xl px-4 py-2 text-[13px] font-heading font-semibold text-white relative overflow-hidden"
+            style={{
+              background: 'linear-gradient(135deg, rgba(0,212,255,0.18) 0%, rgba(139,92,246,0.22) 100%)',
+              border: '1px solid rgba(139,92,246,0.4)',
+              boxShadow: '0 0 14px rgba(139,92,246,0.18), 0 0 28px rgba(0,212,255,0.08)',
+            }}
+            whileHover={{
+              scale: 1.05,
+              boxShadow: '0 0 22px rgba(139,92,246,0.35), 0 0 40px rgba(0,212,255,0.15)',
+              borderColor: 'rgba(139,92,246,0.65)',
+            }}
+            whileTap={{ scale: 0.96 }}
+            transition={{ type: 'spring', stiffness: 380, damping: 22 }}
+          >
+            <motion.span
+              animate={{ rotate: [0, 15, -15, 0], scale: [1, 1.2, 1] }}
+              transition={{ duration: 3.5, repeat: Infinity, ease: 'easeInOut' }}
+              style={{ display: 'flex' }}
+            >
+              <SmilePlus className="h-3.5 w-3.5" style={{ color: '#00D4FF' }} />
+            </motion.span>
+            <span
+              style={{
+                background: 'linear-gradient(90deg, #00D4FF, #8B5CF6)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+              }}
+            >Collaborate</span>
+          </motion.button>
 
           {/* Sessions dropdown */}
           {sessions.length > 0 && (

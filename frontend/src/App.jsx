@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Sparkles, Globe, BarChart3, FileText, Image, RotateCcw, Palette, MessageSquare, Info } from 'lucide-react'
+import { Sparkles, SmilePlus, Globe, BarChart3, FileText, Image, RotateCcw, Palette, MessageSquare, Info, Zap, ArrowRight } from 'lucide-react'
+import logo from '../logo.png'
 
 import AppHeader from './components/AppHeader'
 import Loader from './components/Loader'
@@ -13,6 +14,8 @@ import MediaPanel from './components/MediaPanel'
 import Footer from './components/Footer'
 import PrivacyModal from './components/PrivacyModal'
 import CookiesModal, { getCookieConsent, setCookieConsent } from './components/CookiesModal'
+import ChatWidget from './components/ChatWidget'
+import CollaborateModal from './components/CollaborateModal'
 
 import {
   askQuestion, loadInsights, loadMedia,
@@ -122,7 +125,7 @@ function SessionBar({ title, sessionId, pageCount, siteTheme, onReset, themeEnab
         {/* Reset button */}
         <button
           onClick={onReset}
-          title="Reset — clear current session"
+          title="Reset/clear current session"
           className="flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-medium glass text-cyber-muted hover:text-white hover:border-white/20 transition-all"
         >
           <RotateCcw className="h-3 w-3" />
@@ -209,7 +212,7 @@ function AnimatedGlobe() {
             animate={{ rotate: [0, 360] }}
             transition={{ duration: 18, repeat: Infinity, ease: 'linear' }}
           >
-            <Globe className="h-10 w-10 text-[#030B18]" />
+            <img src={logo} alt="Web Intelligence" className="h-15 w-15 object-contain" />
           </motion.div>
         </div>
       </motion.div>
@@ -307,19 +310,52 @@ function QueryCard({ query, onClick }) {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      <button
+      <motion.button
         onClick={onClick}
-        className="glass rounded-xl px-4 py-4 text-left text-sm text-slate-300 hover:text-white hover-glow transition-all flex items-start gap-3 w-full"
+        className="glass rounded-xl px-4 py-4 text-left text-[15px] text-slate-300 hover:text-white transition-all flex items-start gap-3 w-full relative overflow-hidden"
+        style={{ border: '1px solid rgba(0,212,255,0.1)' }}
+        whileHover={{ scale: 1.025, y: -2, borderColor: 'rgba(0,212,255,0.32)', boxShadow: '0 0 18px rgba(0,212,255,0.1), 0 6px 24px rgba(0,0,0,0.35)' }}
+        whileTap={{ scale: 0.975 }}
+        transition={{ type: 'spring', stiffness: 380, damping: 22 }}
       >
+        {/* Shimmer sweep on hover */}
+        <AnimatePresence>
+          {hovered && (
+            <motion.div
+              className="absolute inset-0 pointer-events-none"
+              initial={{ x: '-110%' }}
+              animate={{ x: '110%' }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.55, ease: 'easeInOut' }}
+              style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(0,212,255,0.09) 50%, transparent 100%)' }}
+            />
+          )}
+        </AnimatePresence>
+
         <motion.div
-          className="shrink-0 mt-0.5"
-          animate={{ scale: [1, 1.28, 1], opacity: [0.7, 1, 0.7] }}
-          transition={{ duration: 2.8, repeat: Infinity, ease: 'easeInOut' }}
+          className="shrink-0 mt-0.5 relative z-10"
+          animate={hovered
+            ? { scale: 1.25, rotate: [0, -12, 12, 0] }
+            : { scale: [1, 1.2, 1], opacity: [0.75, 1, 0.75] }
+          }
+          transition={hovered
+            ? { duration: 0.35, ease: 'easeInOut' }
+            : { duration: 2.8, repeat: Infinity, ease: 'easeInOut' }
+          }
         >
-          <Sparkles className="h-4 w-4 text-cyber-cyan" />
+          <Zap className="h-4 w-4 text-cyber-cyan" />
         </motion.div>
-        <span className="leading-6">{query}</span>
-      </button>
+
+        <span className="leading-6 relative z-10 font-medium flex-1">{query}</span>
+
+        <motion.div
+          className="shrink-0 self-center relative z-10 ml-1"
+          animate={hovered ? { opacity: 1, x: 0 } : { opacity: 0, x: -6 }}
+          transition={{ duration: 0.18, ease: 'easeOut' }}
+        >
+          <ArrowRight className="h-3.5 w-3.5 text-cyber-cyan" />
+        </motion.div>
+      </motion.button>
 
       <AnimatePresence>
         {hovered && (
@@ -356,31 +392,93 @@ function QueryCard({ query, onClick }) {
   )
 }
 
+function SectionDivider({ label, color = 'rgba(0,212,255,0.2)', delay = 0 }) {
+  return (
+    <motion.div
+      className="w-full flex items-center gap-3"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.4, ease: 'easeOut', delay }}
+    >
+      <div className="flex-1 h-px" style={{ background: `linear-gradient(to right, transparent, ${color})` }} />
+      {label && (
+        <span className="text-[10px] font-semibold tracking-widest uppercase shrink-0" style={{ color }}>
+          {label}
+        </span>
+      )}
+      <div className="flex-1 h-px" style={{ background: `linear-gradient(to left, transparent, ${color})` }} />
+    </motion.div>
+  )
+}
+
 function LandingView({ exampleQueries, onQuerySelect }) {
   return (
-    <div className="flex flex-col items-center justify-center h-full text-center p-8 animate-fade-in" style={{ gap: '2.5rem' }}>
-      <div className="space-y-4">
+    <div className="flex flex-col items-center justify-center h-full text-center px-8 py-6 animate-fade-in" style={{ gap: '1.75rem' }} >
+
+      {/* ── Section 1 · Hero ─────────────────────────────────────── */}
+      <div className="space-y-4" >
         <AnimatedGlobe />
-        <h2 className="font-heading font-bold text-[2.6rem] leading-tight text-gradient">
-          Understand any website
-        </h2>
-        <p className="text-slate-400 max-w-md text-[0.9rem] leading-7">
-          Paste a URL and ask anything about pricing, features, audience, tech stack.
-          Every answer links back to the exact page it came from.
-        </p>
+
+        <motion.h2
+          className="font-heading font-bold text-[2.6rem] leading-[1.12] text-gradient"
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.55, ease: 'easeOut', delay: 0.1 }}
+        >
+          Website Analysis &amp; Intelligence
+        </motion.h2>
+
+        <motion.p
+          className="text-slate-400 text-[0.9rem] leading-[1.85] text-center mx-auto" style={{ maxWidth: '40rem' }}
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.55, ease: 'easeOut', delay: 0.22 }}
+        >
+          Enter a URL.{' '}
+          <span style={{ color: '#00D4FF' }}>The AI crawls it</span>,{' '}
+          <span style={{ color: '#8B5CF6' }}>extracts intelligence</span>, and{' '}
+          <span style={{ color: '#10FFA8' }}>answers your questions</span>{' '}
+          — with{' '}
+          <span
+            style={{
+              background: 'linear-gradient(90deg, #00D4FF, #8B5CF6)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              fontWeight: 500,
+            }}
+          >source links on every reply</span>.
+        </motion.p>
       </div>
 
-      <FeatureBadges />
+      <SectionDivider label="capabilities" color="rgba(0,212,255,0.22)" delay={0.28} />
 
+      {/* ── Section 2 · Feature cards ────────────────────────────── */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: 'easeOut', delay: 0.34 }}
+      >
+        <FeatureBadges />
+      </motion.div>
+
+      {/* ── Section 3 · Example queries ──────────────────────────── */}
       {exampleQueries.length > 0 && (
-        <div className="w-full max-w-xl space-y-3">
-          <p className="text-xs text-slate-500 font-medium">Questions to get you started</p>
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-            {exampleQueries.slice(0, 3).map((q) => (
-              <QueryCard key={q} query={q} onClick={() => onQuerySelect(q)} />
-            ))}
-          </div>
-        </div>
+        <>
+          <SectionDivider label="questions to get you started" color="rgba(139,92,246,0.3)" delay={0.42} />
+          <motion.div
+            className="w-full max-w-xl"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, ease: 'easeOut', delay: 0.46 }}
+            style={{maxWidth:'60rem'}}
+          >
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+              {exampleQueries.slice(0, 3).map((q) => (
+                <QueryCard key={q} query={q} onClick={() => onQuerySelect(q)} />
+              ))}
+            </div>
+          </motion.div>
+        </>
       )}
     </div>
   )
@@ -413,6 +511,7 @@ export default function App() {
   const [artifactsLoading, setArtifactsLoading] = useState(false)
   const [showPrivacy, setShowPrivacy] = useState(false)
   const [showCookies, setShowCookies] = useState(false)
+  const [showCollaborate, setShowCollaborate] = useState(false)
 
   const sessionReady = appState === 'ready' && !!sessionId
 
@@ -671,6 +770,8 @@ export default function App() {
         onClearSessions={handleClearSessions}
         error={urlError}
         siteTheme={themeEnabled ? siteTheme : null}
+        onCollaborateClick={() => setShowCollaborate(true)}
+        onReset={resetAll}
       />
 
       <ErrorModal
@@ -687,6 +788,10 @@ export default function App() {
         onDecline={() => { setCookieConsent('declined'); setShowCookies(false) }}
         onPrivacyClick={() => { setShowCookies(false); setShowPrivacy(true) }}
       />
+
+      <CollaborateModal open={showCollaborate} onClose={() => setShowCollaborate(false)} />
+
+      {!sessionReady && appState !== 'processing' && <ChatWidget />}
 
       <div className="flex-1 overflow-hidden flex flex-col">
 

@@ -114,7 +114,7 @@ function Message({ msg }) {
         >
           {!isUser && (
             <div className="flex items-center justify-between mb-2 -mt-0.5">
-              <span className="text-[10px] font-semibold uppercase tracking-widest text-cyber-muted">AI Response</span>
+              <span className="text-[10px] font-semibold uppercase tracking-widest text-cyber-muted">Expert AI</span>
               <button
                 onClick={() => setCollapsed((v) => !v)}
                 className="flex items-center gap-1 text-[10px] text-cyber-muted hover:text-cyber-cyan transition-colors rounded px-1.5 py-0.5 hover:bg-cyber-cyan/10"

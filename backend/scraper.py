@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import ipaddress
 import json
 import re
 from collections import Counter
@@ -102,10 +103,40 @@ class PageContent:
 _PC_FIELDS = set(PageContent.__dataclass_fields__)
 
 
+# Private/loopback ranges blocked to prevent SSRF
+_BLOCKED_NETS = [
+    ipaddress.ip_network("127.0.0.0/8"),
+    ipaddress.ip_network("10.0.0.0/8"),
+    ipaddress.ip_network("172.16.0.0/12"),
+    ipaddress.ip_network("192.168.0.0/16"),
+    ipaddress.ip_network("169.254.0.0/16"),
+    ipaddress.ip_network("0.0.0.0/8"),
+    ipaddress.ip_network("100.64.0.0/10"),
+    ipaddress.ip_network("::1/128"),
+    ipaddress.ip_network("fc00::/7"),
+    ipaddress.ip_network("fe80::/10"),
+]
+_BLOCKED_HOSTS = {"localhost", "127.0.0.1", "::1", "0.0.0.0", "metadata.google.internal"}
+
+
 def validate_url(url: str) -> bool:
     try:
         parsed = urlparse(url.strip())
-        return parsed.scheme in {"http", "https"} and bool(parsed.netloc)
+        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+            return False
+        host = (parsed.hostname or "").lower()
+        if not host:
+            return False
+        if host in _BLOCKED_HOSTS:
+            return False
+        # Block bare numeric IPs in private ranges
+        try:
+            addr = ipaddress.ip_address(host)
+            if any(addr in net for net in _BLOCKED_NETS):
+                return False
+        except ValueError:
+            pass  # hostname, not a bare IP — allow DNS resolution
+        return True
     except Exception:
         return False
 
@@ -269,6 +300,14 @@ def _extract_theme(response: HtmlResponse) -> Dict[str, Any]:
     return theme
 
 
+_IMG_LAZY_ATTRS = (
+    "src", "data-src", "data-lazy-src", "data-original",
+    "data-lazy", "data-image", "data-img", "data-full",
+    "data-hi-res", "data-large-file", "data-srcset",
+)
+_IMG_SKIP_PATTERNS = ("/icon", "/favicon", "/logo-icon", "sprite", "pixel", "1x1", "blank", "tracking")
+
+
 def _extract_images(response: HtmlResponse) -> List[str]:
     """Collect meaningful images from the page: og:image first, then content imgs."""
     seen: set = set()
@@ -284,23 +323,35 @@ def _extract_images(response: HtmlResponse) -> List[str]:
         seen.add(full)
         images.append(full)
 
-    # Regular img tags — skip tiny icons and tracking pixels
-    skip_patterns = ("/icon", "/favicon", "/logo-icon", "sprite", "pixel", "1x1", "blank", "tracking")
-    for src in response.css("img::attr(src), img::attr(data-src), img::attr(data-lazy-src)").getall():
+    def _add(src: str) -> None:
         if not src or src.startswith("data:"):
-            continue
-        full = response.urljoin(src)
+            return
+        full = response.urljoin(src.strip())
         if full in seen:
-            continue
+            return
         path_lower = urlparse(full).path.lower()
-        if any(x in path_lower for x in skip_patterns):
-            continue
+        if any(x in path_lower for x in _IMG_SKIP_PATTERNS):
+            return
         ext = Path(urlparse(full).path).suffix.lower()
         if ext in _IMAGE_EXTENSIONS or not ext:
             seen.add(full)
             images.append(full)
+
+    # All common lazy-load data attributes in one selector pass
+    attr_sel = ", ".join(f"img::attr({a})" for a in _IMG_LAZY_ATTRS)
+    for src in response.css(attr_sel).getall():
         if len(images) >= 25:
             break
+        _add(src)
+
+    # srcset — last candidate is usually highest resolution
+    if len(images) < 25:
+        for srcset_val in response.css("img::attr(srcset), source::attr(srcset)").getall():
+            if len(images) >= 25:
+                break
+            candidates = [part.strip().split()[0] for part in srcset_val.split(",") if part.strip()]
+            if candidates:
+                _add(candidates[-1])
 
     return images
 
@@ -460,7 +511,22 @@ def _extract_sections(response: HtmlResponse, default_title: str) -> List[Sectio
 # ── Low-level fetch / parse helpers ──────────────────────────────────────────
 
 def _fetch_page(url: str, timeout: int = 25) -> Tuple[str, str, HtmlResponse, requests.Response]:
-    resp = requests.get(url, headers=HEADERS, timeout=timeout, allow_redirects=True)
+    parsed = urlparse(url)
+    # Alternate scheme for fallback (https → http on SSL failure, http → https on connection error)
+    alt_url = ("http" + url[5:]) if parsed.scheme == "https" else ("https" + url[4:])
+
+    try:
+        resp = requests.get(url, headers=HEADERS, timeout=timeout, allow_redirects=True)
+    except requests.exceptions.SSLError:
+        # SSL cert invalid/untrusted — fall back to HTTP
+        resp = requests.get(alt_url, headers=HEADERS, timeout=timeout, allow_redirects=True)
+    except requests.exceptions.ConnectionError:
+        if parsed.scheme == "http":
+            # Plain HTTP refused — try HTTPS
+            resp = requests.get(alt_url, headers=HEADERS, timeout=timeout, allow_redirects=True)
+        else:
+            raise
+
     resp.raise_for_status()
     html = resp.text
     html_hash = hashlib.sha256(html.encode("utf-8", errors="ignore")).hexdigest()

@@ -99,7 +99,7 @@ def answer_question(
 Rules:
 - Prioritise the provided context. Extract and use every relevant detail present in it.
 - If partial information exists, give what you have — do NOT refuse to answer just because the context is incomplete.
-- Only respond "I couldn't find this information in the crawled content." if the context has absolutely nothing relevant to the question.
+- Only respond "Sorry, I couldn't find this information. Please try another question." if the context has absolutely nothing relevant to the question.
 - NEVER start with "Based on the provided context", "According to the context", or any similar phrase.
 - Start directly with the answer. Open with a short **bold heading** if helpful.
 - Use **bold** for key terms. Use bullet points for lists.
