@@ -63,3 +63,17 @@ export async function clearAllSessions() {
 export async function loadExampleQueries() {
   return request('/api/example-queries')
 }
+
+export async function sendChat(message, history = []) {
+  return request('/api/chat', {
+    method: 'POST',
+    body: JSON.stringify({ message, history }),
+  })
+}
+
+export async function submitCollaborate(data) {
+  return request('/api/collaborate', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}

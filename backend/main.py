@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from pathlib import Path
 from typing import List, Optional, Dict, Any
 from datetime import datetime, timezone
@@ -19,13 +20,16 @@ ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT / "data"
 SESSION_DIR = DATA_DIR / "sessions"
 INDEX_DIR = DATA_DIR / "faiss_index"
+COLLAB_FILE = DATA_DIR / "collaborations.json"
 SESSION_DIR.mkdir(parents=True, exist_ok=True)
 INDEX_DIR.mkdir(parents=True, exist_ok=True)
+
+_SESSION_ID_RE = re.compile(r'^[a-zA-Z0-9_\-]{8,128}$')
 
 app = FastAPI(
     title="Web Intelligence QA",
     version="2.0.0",
-    description="AI website analyst — scraping, embeddings, FAISS, RAG, theme extraction.",
+    description="AI website analyst",
 )
 
 app.add_middleware(
@@ -50,7 +54,26 @@ class QuestionRequest(BaseModel):
     top_k: int = 5
 
 
+class ChatMessage(BaseModel):
+    role: str
+    content: str = Field(..., max_length=2000)
+
+
+class ChatRequest(BaseModel):
+    message: str = Field(..., min_length=1, max_length=1000)
+    history: List[ChatMessage] = Field(default_factory=list)
+
+
+class CollaborateRequest(BaseModel):
+    name: str = Field(..., min_length=1, max_length=100)
+    email: str = Field(..., min_length=5, max_length=200)
+    linkedin: str = Field(default="", max_length=300)
+    description: str = Field(..., min_length=10, max_length=2000)
+
+
 def _session_file(session_id: str) -> Path:
+    if not _SESSION_ID_RE.match(session_id):
+        raise HTTPException(status_code=400, detail="Invalid session ID.")
     return SESSION_DIR / f"{session_id}.json"
 
 
@@ -153,7 +176,7 @@ def example_queries():
         "queries": [
             "Summarize the website and explain its business model.",
             "What are the key features and who is the target audience?",
-            "What technology stack does this product use, list them?",
+            "What technology stack does this product uses?",
         ]
     }
 
@@ -360,3 +383,60 @@ def compare(session_id: str):
         "items": rows,
         "note": "Use the chat tab for deeper cross-site comparisons.",
     }
+
+
+@app.post("/api/chat")
+def chat(req: ChatRequest):
+    from .rag import _call_llm
+    knowledge_file = ROOT / "admin-chat.md"
+    knowledge = (
+        knowledge_file.read_text(encoding="utf-8")
+        if knowledge_file.exists()
+        else "No knowledge base configured."
+    )
+
+    history_lines = ""
+    for msg in req.history[-6:]:
+        role = "User" if msg.role == "user" else "Assistant"
+        history_lines += f"{role}: {msg.content}\n"
+
+    prompt = (
+        "You are a friendly, concise assistant for Web Intelligence — an AI-powered "
+        "website analysis tool. Answer questions about the app, how it works, and the "
+        "developer. Keep replies under 120 words unless detail is truly needed.\n\n"
+        f"KNOWLEDGE BASE:\n{knowledge}\n\n"
+        + (f"CONVERSATION SO FAR:\n{history_lines}\n" if history_lines else "")
+        + f"User: {req.message}\nAssistant:"
+    )
+
+    try:
+        reply = _call_llm(prompt)
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail=f"LLM unavailable: {str(exc)[:200]}")
+
+    return {"reply": reply.strip()}
+
+
+@app.post("/api/collaborate")
+def collaborate(req: CollaborateRequest):
+    if not re.match(r'^[^@\s]+@[^@\s]+\.[^@\s]+$', req.email):
+        raise HTTPException(status_code=422, detail="Invalid email address.")
+
+    existing: List[Dict[str, Any]] = []
+    if COLLAB_FILE.exists():
+        try:
+            existing = json.loads(COLLAB_FILE.read_text(encoding="utf-8"))
+        except Exception:
+            existing = []
+
+    existing.append({
+        "name": req.name,
+        "email": req.email,
+        "linkedin": req.linkedin,
+        "description": req.description,
+        "submitted_at": datetime.now(timezone.utc).isoformat(),
+    })
+    COLLAB_FILE.write_text(
+        json.dumps(existing, indent=2, ensure_ascii=False), encoding="utf-8"
+    )
+    return {"ok": True, "message": "Thanks! We'll be in touch soon."}
