@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import json
 import os
-import requests
 from typing import Any, Dict, List
 
+from ollama import Client
 from .embeddings import EmbeddingStore
 
 # ---------------------------------------------------------------------------
@@ -12,12 +12,10 @@ from .embeddings import EmbeddingStore
 # ---------------------------------------------------------------------------
 LLM_PROVIDER = os.getenv("LLM_PROVIDER", "ollama").lower()
 
-# Ollama
-OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434/api/generate")
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "deepseek-v3.1:671b-cloud")
-_OLLAMA_TIMEOUT = (10, 600)
-
-_OOM_MODELS = ["phi3.5:mini", "gemma2:2b", "llama3.2:1b", "qwen2.5:1.5b", "tinyllama"]
+# Ollama Cloud
+OLLAMA_HOST = os.getenv("OLLAMA_URL")
+OLLAMA_API_KEY = os.getenv("OLLAMA_API_KEY")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL")
 
 # Gemini
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
@@ -35,22 +33,21 @@ def _call_llm(prompt: str) -> str:
 
 
 def _call_ollama(prompt: str) -> str:
-    response = requests.post(
-        OLLAMA_URL,
-        json={"model": OLLAMA_MODEL, "prompt": prompt, "stream": False},
-        timeout=_OLLAMA_TIMEOUT,
+    if not OLLAMA_API_KEY:
+        raise RuntimeError("OLLAMA_API_KEY is not set. Add it to .env.")
+    if not OLLAMA_HOST:
+        raise RuntimeError("OLLAMA_URL is not set. Add it to .env.")
+    if not OLLAMA_MODEL:
+        raise RuntimeError("OLLAMA_MODEL is not set. Add it to .env.")
+    client = Client(
+        host=OLLAMA_HOST,
+        headers={"Authorization": f"Bearer {OLLAMA_API_KEY}"},
     )
-    if response.status_code != 200:
-        body = response.text[:400]
-        if "memory" in body.lower() or "oom" in body.lower():
-            suggestions = ", ".join(_OOM_MODELS)
-            raise RuntimeError(
-                f"Model '{OLLAMA_MODEL}' exceeds available system memory. "
-                f"Set OLLAMA_MODEL to a smaller model, e.g.: {suggestions}. "
-                f"Or switch to Gemini by setting LLM_PROVIDER=gemini."
-            )
-        raise RuntimeError(f"Ollama error {response.status_code}: {body}")
-    return response.json()["response"]
+    response = client.chat(
+        model=OLLAMA_MODEL,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    return response["message"]["content"]
 
 
 def _call_gemini(prompt: str) -> str:

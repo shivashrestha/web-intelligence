@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowLeft, Globe, Image, ExternalLink, X, Palette, RefreshCw } from 'lucide-react'
 import { loadMedia, loadSessions } from '../services/api'
+import { useSEO } from '../hooks/useSEO'
 
 // ── Lightbox ──────────────────────────────────────────────────────────────
 
@@ -184,6 +185,12 @@ export default function MediaPage() {
 
   const palette = theme?.palette || []
   const accent = theme?.accent || meta?.theme?.accent
+
+  useSEO({
+    title: meta?.title ? `${meta.title} — Media` : 'Media',
+    image: meta?.theme?.og_image || null,
+    url: `/media/${sessionId}`,
+  })
 
   return (
     <div className="min-h-screen bg-cyber-bg bg-grid text-white">
