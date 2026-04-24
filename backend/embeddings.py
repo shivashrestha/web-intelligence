@@ -11,7 +11,7 @@ import faiss
 import numpy as np
 from sentence_transformers import SentenceTransformer
 
-from .processor import DocumentChunk
+from processor import DocumentChunk
 
 MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
 
