@@ -5,7 +5,7 @@ import os
 from typing import Any, Dict, List
 
 from ollama import Client
-from .embeddings import EmbeddingStore
+from embeddings import EmbeddingStore
 
 # ---------------------------------------------------------------------------
 # Provider selection

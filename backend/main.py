@@ -14,10 +14,10 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from .scraper import scrape_many, validate_url
-from .processor import chunk_pages, build_source_map
-from .embeddings import EmbeddingStore, session_id_from_urls
-from .rag import answer_question, build_insights
+from scraper import scrape_many, validate_url
+from processor import chunk_pages, build_source_map
+from embeddings import EmbeddingStore, session_id_from_urls
+from rag import answer_question, build_insights
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT / "data"
@@ -390,7 +390,7 @@ def compare(session_id: str):
 
 @app.post("/api/chat")
 def chat(req: ChatRequest):
-    from .rag import _call_llm
+    from rag import _call_llm
     knowledge_file = ROOT / "admin-chat.md"
     knowledge = (
         knowledge_file.read_text(encoding="utf-8")

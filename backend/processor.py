@@ -5,7 +5,7 @@ from typing import Dict, List, Sequence
 import hashlib
 import re
 
-from .scraper import PageContent
+from scraper import PageContent
 
 
 @dataclass
