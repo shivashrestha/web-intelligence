@@ -190,10 +190,7 @@ def delete_session(session_id: str):
     if not path.exists():
         raise HTTPException(status_code=404, detail="Session not found")
     path.unlink()
-    index_dir = INDEX_DIR / session_id
-    if index_dir.exists():
-        import shutil
-        shutil.rmtree(index_dir, ignore_errors=True)
+    store.delete(session_id)
     return {"deleted": session_id}
 
 
@@ -203,10 +200,7 @@ def clear_all_sessions():
     for file in SESSION_DIR.glob("*.json"):
         sid = file.stem
         file.unlink()
-        index_dir = INDEX_DIR / sid
-        if index_dir.exists():
-            import shutil
-            shutil.rmtree(index_dir, ignore_errors=True)
+        store.delete(sid)
         deleted.append(sid)
     return {"deleted": deleted, "count": len(deleted)}
 
