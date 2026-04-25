@@ -182,7 +182,7 @@ function ScoreBreakdownModal({ breakdown, totalScore, onClose }) {
         }}
       >
         {/* Header */}
-        <div className="px-6 pt-6 pb-4" style={{ background: 'linear-gradient(135deg, rgba(0,212,255,0.1) 0%, transparent 100%)' }}>
+        <div className="px-5 sm:px-6 pt-5 sm:pt-6 pb-4" style={{ background: 'linear-gradient(135deg, rgba(0,212,255,0.1) 0%, transparent 100%)' }}>
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-2xl flex items-center justify-center shrink-0"
@@ -213,10 +213,10 @@ function ScoreBreakdownModal({ breakdown, totalScore, onClose }) {
           </div>
         </div>
 
-        <div className="h-px mx-6" style={{ background: 'linear-gradient(90deg, rgba(0,212,255,0.3), transparent)' }} />
+        <div className="h-px mx-5 sm:mx-6" style={{ background: 'linear-gradient(90deg, rgba(0,212,255,0.3), transparent)' }} />
 
         {/* Categories */}
-        <div className="px-6 py-5 space-y-4 max-h-[60vh] overflow-y-auto">
+        <div className="px-5 sm:px-6 py-4 sm:py-5 space-y-4 max-h-[50vh] sm:max-h-[60vh] overflow-y-auto">
           {breakdown.map((cat, i) => {
             const pct = cat.isRisk
               ? 0
@@ -289,7 +289,7 @@ function ScoreBreakdownModal({ breakdown, totalScore, onClose }) {
           })}
         </div>
 
-        <div className="px-6 pb-5 pt-1 border-t border-white/5">
+        <div className="px-5 sm:px-6 pb-5 pt-1 border-t border-white/5">
           <p className="text-[9px] text-cyber-muted text-center leading-4">
             Security scores are factual (HTTP header checks). Content scores are derived from AI analysis.
             <br />Press Esc or click outside to close.
@@ -447,7 +447,7 @@ function InsightDetailModal({ block, color, onClose }) {
       >
         {/* Hero header */}
         <div
-          className="px-7 pt-7 pb-5"
+          className="px-5 sm:px-7 pt-5 sm:pt-7 pb-4 sm:pb-5"
           style={{ background: `linear-gradient(135deg, ${hex2rgba(color, 0.13)} 0%, transparent 100%)` }}
         >
           <div className="flex items-start justify-between gap-4">
@@ -475,10 +475,10 @@ function InsightDetailModal({ block, color, onClose }) {
         </div>
 
         {/* Divider */}
-        <div className="h-px mx-7" style={{ background: `linear-gradient(90deg, ${hex2rgba(color, 0.3)}, transparent)` }} />
+        <div className="h-px mx-5 sm:mx-7" style={{ background: `linear-gradient(90deg, ${hex2rgba(color, 0.3)}, transparent)` }} />
 
         {/* Items */}
-        <div className="px-7 py-5 space-y-2 max-h-[58vh] overflow-y-auto">
+        <div className="px-5 sm:px-7 py-4 sm:py-5 space-y-2 max-h-[50vh] sm:max-h-[58vh] overflow-y-auto">
           {hasPCons ? (
             <>
               {pros.map((item, i) => (
@@ -529,7 +529,7 @@ function InsightDetailModal({ block, color, onClose }) {
         </div>
 
         {/* Footer */}
-        <div className="px-7 pb-5 pt-1">
+        <div className="px-5 sm:px-7 pb-5 pt-1">
           <p className="text-[10px] text-cyber-muted text-center tracking-wide">
             Press Esc or click outside to close
           </p>

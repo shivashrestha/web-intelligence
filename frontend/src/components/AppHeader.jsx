@@ -134,10 +134,10 @@ export default function AppHeader({
             </button>
           </form>
 
-          {/* Collaborate button */}
+          {/* Collaborate button — icon-only on mobile, full on sm+ */}
           <motion.button
             onClick={onCollaborateClick}
-            className="shrink-0 flex items-center gap-2 rounded-xl px-4 py-2 text-[13px] font-heading font-semibold text-white relative overflow-hidden"
+            className="shrink-0 flex items-center gap-2 rounded-xl px-3 sm:px-4 py-2 text-[13px] font-heading font-semibold text-white relative overflow-hidden"
             style={{
               background: 'linear-gradient(135deg, rgba(0,212,255,0.18) 0%, rgba(139,92,246,0.22) 100%)',
               border: '1px solid rgba(139,92,246,0.4)',
@@ -159,6 +159,7 @@ export default function AppHeader({
               <SmilePlus className="h-3.5 w-3.5" style={{ color: '#00D4FF' }} />
             </motion.span>
             <span
+              className="hidden sm:inline"
               style={{
                 background: 'linear-gradient(90deg, #00D4FF, #8B5CF6)',
                 WebkitBackgroundClip: 'text',
@@ -183,7 +184,7 @@ export default function AppHeader({
               </button>
 
               {sessionsOpen && (
-                <div className="absolute right-0 top-full mt-2 w-80 glass-elevated rounded-2xl shadow-elevated animate-fade-in overflow-hidden">
+                <div className="absolute right-0 top-full mt-2 w-80 max-w-[calc(100vw-2rem)] glass-elevated rounded-2xl shadow-elevated animate-fade-in overflow-hidden">
                   <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/8">
                     <p className="text-[10px] font-semibold uppercase tracking-widest text-cyber-muted">Recent Sessions</p>
                     <button

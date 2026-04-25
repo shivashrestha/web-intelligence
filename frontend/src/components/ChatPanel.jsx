@@ -157,7 +157,7 @@ export default function ChatPanel({ messages, question, onQuestionChange, onAsk,
     <div className="h-full flex flex-col">
 
       {/* Scrollable message thread */}
-      <div className="flex-1 overflow-y-auto p-5 space-y-4">
+      <div className="flex-1 overflow-y-auto p-3 sm:p-5 space-y-4">
         {messages.map((msg, idx) => (
           <Message key={idx} msg={msg} />
         ))}
@@ -185,7 +185,7 @@ export default function ChatPanel({ messages, question, onQuestionChange, onAsk,
       </div>
 
       {/* Input area — pinned to bottom */}
-      <div className="shrink-0 border-t border-white/6 bg-cyber-bg/60 backdrop-blur-sm px-4 pt-3 pb-4 space-y-2.5">
+      <div className="shrink-0 border-t border-white/6 bg-cyber-bg/60 backdrop-blur-sm px-4 pt-3 pb-4 safe-bottom space-y-2.5">
         {/* Quick prompts */}
         <div className="flex items-center gap-2 flex-wrap">
           <Zap className="h-3.5 w-3.5 text-cyber-cyan shrink-0" />
