@@ -1,6 +1,6 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Globe, Clock, ChevronDown, ChevronRight, Trash2, Search, Loader2, Sparkles, SmilePlus} from 'lucide-react'
+import { Globe, Clock, ChevronDown, ChevronRight, Trash2, Search, Loader2, X, SmilePlus } from 'lucide-react'
 import logo from '../../logo.png'
 
 function SessionRow({ session, onClick, onDelete }) {
@@ -31,12 +31,7 @@ function SessionRow({ session, onClick, onDelete }) {
             </div>
           )}
           <span className="text-sm font-medium text-white truncate">{session.title || domain}</span>
-          <motion.div
-            className="shrink-0 opacity-0 group-hover:opacity-100"
-            initial={false}
-            animate={{ x: 0 }}
-            whileHover={{ x: 2 }}
-          >
+          <motion.div className="shrink-0 opacity-0 group-hover:opacity-100" initial={false} animate={{ x: 0 }} whileHover={{ x: 2 }}>
             <ChevronRight className="h-3.5 w-3.5 text-cyber-cyan" />
           </motion.div>
         </div>
@@ -64,39 +59,174 @@ export default function AppHeader({
   error, siteTheme, onCollaborateClick, onReset,
 }) {
   const [sessionsOpen, setSessionsOpen] = useState(false)
-  const dropdownRef = useRef(null)
-  const inputRef = useRef(null)
+
+  const accent = siteTheme?.accent || null
+  const accentStyle = accent ? { '--btn-accent': accent } : {}
 
   useEffect(() => {
     if (!sessionsOpen) return
     const handler = (e) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
-        setSessionsOpen(false)
-      }
+      if (!e.target.closest('[data-sessions-dropdown]')) setSessionsOpen(false)
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
   }, [sessionsOpen])
-
-  const accent = siteTheme?.accent || null
-  const accentStyle = accent ? { '--btn-accent': accent } : {}
 
   function handleSubmit(e) {
     e.preventDefault()
     onProcess()
   }
 
+  // Called as {renderUrlForm(...)} — not a component, avoids remount
+  function renderUrlForm(extraClass) {
+    return (
+      <form onSubmit={handleSubmit} className={`flex items-center gap-2 ${extraClass}`}>
+        <div className="relative flex-1 min-w-0">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none z-10" />
+          <input
+            value={url}
+            onChange={(e) => onUrlChange(e.target.value)}
+            placeholder="Enter a website URL…"
+            disabled={processing}
+            className={`input-url w-full rounded-xl pl-10 ${url && !processing ? 'pr-9' : 'pr-4'} py-2.5 text-sm font-mono`}
+          />
+          {url && !processing && (
+            <button
+              type="button"
+              onClick={() => onUrlChange('')}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 h-5 w-5 rounded flex items-center justify-center text-slate-400 hover:text-slate-700 transition-colors z-10"
+              aria-label="Clear"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+        <button
+          type="submit"
+          disabled={!url.trim() || processing}
+          className="analyze-btn shrink-0 rounded-xl px-4 py-2.5 text-sm font-semibold font-heading flex items-center gap-2 transition-all duration-300 disabled:opacity-40 disabled:cursor-not-allowed"
+          style={accentStyle}
+        >
+          {processing
+            ? <Loader2 className="h-4 w-4 animate-spin" />
+            : <><Search className="h-4 w-4 sm:hidden" /><span className="hidden sm:inline">Analyze</span></>
+          }
+        </button>
+      </form>
+    )
+  }
+
+  function renderCollaborateBtn(iconOnly) {
+    return (
+      <motion.button
+        onClick={onCollaborateClick}
+        className="shrink-0 flex items-center gap-2 rounded-xl px-3 py-2 text-[13px] font-heading font-semibold text-white relative overflow-hidden"
+        style={{
+          background: 'linear-gradient(135deg, rgba(0,212,255,0.18) 0%, rgba(139,92,246,0.22) 100%)',
+          border: '1px solid rgba(139,92,246,0.4)',
+          boxShadow: '0 0 14px rgba(139,92,246,0.18)',
+        }}
+        whileHover={{ scale: 1.05, boxShadow: '0 0 22px rgba(139,92,246,0.35)' }}
+        whileTap={{ scale: 0.96 }}
+        transition={{ type: 'spring', stiffness: 380, damping: 22 }}
+      >
+        <motion.span
+          animate={{ rotate: [0, 15, -15, 0], scale: [1, 1.2, 1] }}
+          transition={{ duration: 3.5, repeat: Infinity, ease: 'easeInOut' }}
+          style={{ display: 'flex' }}
+        >
+          <SmilePlus className="h-3.5 w-3.5" style={{ color: '#00D4FF' }} />
+        </motion.span>
+        {!iconOnly && (
+          <span style={{
+            background: 'linear-gradient(90deg, #00D4FF, #8B5CF6)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+          }}>Collaborate</span>
+        )}
+      </motion.button>
+    )
+  }
+
+  function renderSessionsDropdown() {
+    if (!sessions.length) return null
+    return (
+      <div className="relative shrink-0" data-sessions-dropdown>
+        <button
+          onClick={() => setSessionsOpen((v) => !v)}
+          className={[
+            'flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm glass transition-all',
+            sessionsOpen ? 'text-cyber-cyan border-cyber-cyan/30' : 'text-cyber-muted hover:text-white',
+          ].join(' ')}
+        >
+          <Clock className="h-3.5 w-3.5" />
+          <span className="text-xs font-medium">{sessions.length}</span>
+          <ChevronDown className={['h-3 w-3 transition-transform duration-200', sessionsOpen ? 'rotate-180' : ''].join(' ')} />
+        </button>
+
+        {sessionsOpen && (
+          <div className="absolute right-0 top-full mt-2 w-80 max-w-[calc(100vw-2rem)] glass-elevated rounded-2xl shadow-elevated animate-fade-in overflow-hidden z-50">
+            <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/8">
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-cyber-muted">Recent Sessions</p>
+              <button
+                onClick={() => { onClearSessions(); setSessionsOpen(false) }}
+                className="text-[10px] text-cyber-muted hover:text-red-400 transition-colors"
+              >
+                Clear all
+              </button>
+            </div>
+            <div className="p-2 space-y-1 max-h-72 overflow-y-auto">
+              {sessions.slice(0, 8).map((s) => (
+                <SessionRow
+                  key={s.session_id}
+                  session={s}
+                  onClick={() => { onLoadSession(s); setSessionsOpen(false) }}
+                  onDelete={(sid) => {
+                    onDeleteSession(sid)
+                    if (sessions.length <= 1) setSessionsOpen(false)
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
+
   return (
     <header className="shrink-0 z-40 relative">
       <div className="glass border-b border-white/8">
-        <div className="flex items-center gap-3 px-5 h-[78px]">
 
-          {/* Brand */}
+        {/* ── MOBILE (< sm): 2-row layout ──────────────────────── */}
+        <div className="sm:hidden">
+          {/* Row 1: brand + right actions */}
+          <div className="flex items-center gap-2 px-3 pt-2.5 pb-2">
+            <button
+              onClick={onReset}
+              className="flex items-center gap-2 shrink-0 rounded-xl p-1 hover:opacity-80 transition-opacity"
+            >
+              <img src={logo} alt="Web Intelligence" className="h-9 w-9 object-contain" />
+              <div className="text-left">
+                <h1 className="font-heading font-bold text-white text-[13px] leading-tight">Web Intelligence</h1>
+                <p className="text-[10px] text-slate-500">Website analyst</p>
+              </div>
+            </button>
+            <div className="flex-1" />
+            {renderCollaborateBtn(true)}
+            {renderSessionsDropdown()}
+          </div>
+          {/* Row 2: full-width search */}
+          {renderUrlForm('px-3 pb-3')}
+        </div>
+
+        {/* ── DESKTOP (sm+): single-row layout ─────────────────── */}
+        <div className="hidden sm:flex items-center gap-3 px-5 h-[78px]">
           <button
             onClick={onReset}
             className="flex items-center gap-2.5 shrink-0 rounded-xl px-1 py-1 hover:opacity-80 transition-opacity"
           >
-            <img src={logo} alt="Web Intelligence" className="h-20 w-20 object-contain shrink-0" />
+            <img src={logo} alt="Web Intelligence" className="h-14 w-14 lg:h-[72px] lg:w-[72px] object-contain shrink-0" />
             <div className="hidden lg:block text-left">
               <h1 className="font-heading font-bold text-white text-[14px] leading-tight">Web Intelligence</h1>
               <p className="text-[10px] text-slate-500">Website analyst</p>
@@ -105,112 +235,10 @@ export default function AppHeader({
 
           <div className="h-5 w-px bg-white/8 shrink-0" />
 
-          {/* Centered URL form — grows to fill available space */}
-          <form
-            onSubmit={handleSubmit}
-            className="flex-1 flex items-center gap-2 max-w-2xl mx-auto"
-          >
-            <div className="relative flex-1">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none z-10" />
-              <input
-                ref={inputRef}
-                value={url}
-                onChange={(e) => onUrlChange(e.target.value)}
-                placeholder="Enter a website URL to analyze…"
-                disabled={processing}
-                className="input-url w-full rounded-xl pl-10 pr-4 py-3 text-sm font-mono"
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={!url.trim() || processing}
-              className="analyze-btn shrink-0 rounded-xl px-5 py-3 text-sm font-semibold font-heading flex items-center gap-2 transition-all duration-300 disabled:opacity-40 disabled:cursor-not-allowed"
-              style={accentStyle}
-            >
-              {processing
-                ? <><Loader2 className="h-4 w-4 animate-spin" /><span className="hidden sm:inline">Analyzing…</span></>
-                : <><span>Analyze</span></>
-              }
-            </button>
-          </form>
+          {renderUrlForm('flex-1 max-w-2xl mx-auto')}
 
-          {/* Collaborate button — icon-only on mobile, full on sm+ */}
-          <motion.button
-            onClick={onCollaborateClick}
-            className="shrink-0 flex items-center gap-2 rounded-xl px-3 sm:px-4 py-2 text-[13px] font-heading font-semibold text-white relative overflow-hidden"
-            style={{
-              background: 'linear-gradient(135deg, rgba(0,212,255,0.18) 0%, rgba(139,92,246,0.22) 100%)',
-              border: '1px solid rgba(139,92,246,0.4)',
-              boxShadow: '0 0 14px rgba(139,92,246,0.18), 0 0 28px rgba(0,212,255,0.08)',
-            }}
-            whileHover={{
-              scale: 1.05,
-              boxShadow: '0 0 22px rgba(139,92,246,0.35), 0 0 40px rgba(0,212,255,0.15)',
-              borderColor: 'rgba(139,92,246,0.65)',
-            }}
-            whileTap={{ scale: 0.96 }}
-            transition={{ type: 'spring', stiffness: 380, damping: 22 }}
-          >
-            <motion.span
-              animate={{ rotate: [0, 15, -15, 0], scale: [1, 1.2, 1] }}
-              transition={{ duration: 3.5, repeat: Infinity, ease: 'easeInOut' }}
-              style={{ display: 'flex' }}
-            >
-              <SmilePlus className="h-3.5 w-3.5" style={{ color: '#00D4FF' }} />
-            </motion.span>
-            <span
-              className="hidden sm:inline"
-              style={{
-                background: 'linear-gradient(90deg, #00D4FF, #8B5CF6)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-              }}
-            >Collaborate</span>
-          </motion.button>
-
-          {/* Sessions dropdown */}
-          {sessions.length > 0 && (
-            <div className="relative shrink-0" ref={dropdownRef}>
-              <button
-                onClick={() => setSessionsOpen((v) => !v)}
-                className={[
-                  'flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm glass transition-all',
-                  sessionsOpen ? 'text-cyber-cyan border-cyber-cyan/30' : 'text-cyber-muted hover:text-white',
-                ].join(' ')}
-              >
-                <Clock className="h-3.5 w-3.5" />
-                <span className="text-xs font-medium hidden sm:inline">{sessions.length}</span>
-                <ChevronDown className={['h-3 w-3 transition-transform duration-200', sessionsOpen ? 'rotate-180' : ''].join(' ')} />
-              </button>
-
-              {sessionsOpen && (
-                <div className="absolute right-0 top-full mt-2 w-80 max-w-[calc(100vw-2rem)] glass-elevated rounded-2xl shadow-elevated animate-fade-in overflow-hidden">
-                  <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/8">
-                    <p className="text-[10px] font-semibold uppercase tracking-widest text-cyber-muted">Recent Sessions</p>
-                    <button
-                      onClick={() => { onClearSessions(); setSessionsOpen(false) }}
-                      className="text-[10px] text-cyber-muted hover:text-red-400 transition-colors"
-                    >
-                      Clear all
-                    </button>
-                  </div>
-                  <div className="p-2 space-y-1 max-h-72 overflow-y-auto">
-                    {sessions.slice(0, 8).map((s) => (
-                      <SessionRow
-                        key={s.session_id}
-                        session={s}
-                        onClick={() => { onLoadSession(s); setSessionsOpen(false) }}
-                        onDelete={(sid) => {
-                          onDeleteSession(sid)
-                          if (sessions.length <= 1) setSessionsOpen(false)
-                        }}
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
+          {renderCollaborateBtn(false)}
+          {renderSessionsDropdown()}
         </div>
 
         {/* Error bar */}

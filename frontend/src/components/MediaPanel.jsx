@@ -126,18 +126,19 @@ export default function MediaPanel({ media, siteTheme }) {
       {/* Pinterest masonry: CSS columns, natural-height images, break-inside-avoid */}
       <div
         style={{
-          columns: '4',
-          columnGap: '0.75rem',
+          columns: '2',
+          columnGap: '0.5rem',
         }}
         className="pinterest-grid"
       >
         <style>{`
-          @media (min-width: 480px)  { .pinterest-grid { columns: 3; } }
+          @media (min-width: 480px)  { .pinterest-grid { columns: 2; column-gap: 0.625rem; } }
+          @media (min-width: 640px)  { .pinterest-grid { columns: 3; column-gap: 0.75rem; } }
           @media (min-width: 768px)  { .pinterest-grid { columns: 4; } }
           @media (min-width: 1280px) { .pinterest-grid { columns: 5; } }
         `}</style>
         {images.map((src, i) => (
-          <div key={i} className="break-inside-avoid mb-3">
+          <div key={i} className="break-inside-avoid mb-2 sm:mb-3">
             <ImageCard src={src} index={i} />
           </div>
         ))}
