@@ -108,7 +108,7 @@ export default function SourcesPanel({ sources }) {
         </p>
         <InfoTooltip text="Only main content sections are extracted. Navigation, footers, ads, and script content are excluded to focus on meaningful page content." />
       </div>
-      <div className="grid gap-3 xl:grid-cols-2">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {sources.map((source, idx) => (
           <SourceCard key={`${source.url}-${idx}`} source={source} />
         ))}

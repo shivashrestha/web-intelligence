@@ -865,6 +865,7 @@ export default function App() {
               {activeTab === 'insights' && (
                 <div className="h-full overflow-y-auto p-4 animate-fade-in">
                   <InsightPanel insights={insights} loading={!insights} siteTheme={themeEnabled ? siteTheme : null} />
+                  <Footer onPrivacyClick={() => setShowPrivacy(true)} onCookiesClick={() => setShowCookies(true)} />
                 </div>
               )}
               {activeTab === 'qa' && (
@@ -881,11 +882,13 @@ export default function App() {
               {activeTab === 'media' && (
                 <div className="h-full overflow-y-auto p-4 animate-fade-in">
                   <MediaPanel media={media} siteTheme={siteTheme} />
+                  <Footer onPrivacyClick={() => setShowPrivacy(true)} onCookiesClick={() => setShowCookies(true)} />
                 </div>
               )}
               {activeTab === 'sources' && (
                 <div className="h-full overflow-y-auto p-4 animate-fade-in">
                   <SourcesPanel sources={sources} />
+                  <Footer onPrivacyClick={() => setShowPrivacy(true)} onCookiesClick={() => setShowCookies(true)} />
                 </div>
               )}
             </div>
@@ -898,14 +901,10 @@ export default function App() {
               exampleQueries={exampleQueries}
               onQuerySelect={(q) => setQuestion(q)}
             />
+            <Footer onPrivacyClick={() => setShowPrivacy(true)} onCookiesClick={() => setShowCookies(true)} />
           </div>
         )}
       </div>
-
-      <Footer
-        onPrivacyClick={() => setShowPrivacy(true)}
-        onCookiesClick={() => setShowCookies(true)}
-      />
     </div>
   )
 }
