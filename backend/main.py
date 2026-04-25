@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 import os
 import re
+import psycopg2
+import psycopg2.extras
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -28,6 +30,31 @@ SESSION_DIR.mkdir(parents=True, exist_ok=True)
 INDEX_DIR.mkdir(parents=True, exist_ok=True)
 
 _SESSION_ID_RE = re.compile(r'^[a-zA-Z0-9_\-]{8,128}$')
+
+SUPABASE_DSN = os.getenv("SUPABASE_CONNECTION_STRING", "")
+
+
+def _get_db():
+    return psycopg2.connect(SUPABASE_DSN)
+
+
+def _ensure_collab_table():
+    with _get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS collaborations (
+                    id SERIAL PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    email TEXT NOT NULL,
+                    linkedin TEXT,
+                    description TEXT NOT NULL,
+                    submitted_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                )
+            """)
+        conn.commit()
+
+
+_ensure_collab_table()
 
 app = FastAPI(
     title="Web Intelligence QA",
@@ -419,21 +446,18 @@ def collaborate(req: CollaborateRequest):
     if not re.match(r'^[^@\s]+@[^@\s]+\.[^@\s]+$', req.email):
         raise HTTPException(status_code=422, detail="Invalid email address.")
 
-    existing: List[Dict[str, Any]] = []
-    if COLLAB_FILE.exists():
-        try:
-            existing = json.loads(COLLAB_FILE.read_text(encoding="utf-8"))
-        except Exception:
-            existing = []
+    try:
+        with _get_db() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    INSERT INTO collaborations (name, email, linkedin, description, submitted_at)
+                    VALUES (%s, %s, %s, %s, %s)
+                    """,
+                    (req.name, req.email, req.linkedin, req.description, datetime.now(timezone.utc)),
+                )
+            conn.commit()
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail=f"Database error: {str(exc)[:200]}")
 
-    existing.append({
-        "name": req.name,
-        "email": req.email,
-        "linkedin": req.linkedin,
-        "description": req.description,
-        "submitted_at": datetime.now(timezone.utc).isoformat(),
-    })
-    COLLAB_FILE.write_text(
-        json.dumps(existing, indent=2, ensure_ascii=False), encoding="utf-8"
-    )
     return {"ok": True, "message": "Thanks! We'll be in touch soon."}

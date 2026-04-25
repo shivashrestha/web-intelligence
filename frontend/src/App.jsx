@@ -75,7 +75,7 @@ function SessionBar({ title, sessionId, pageCount, siteTheme, onReset, themeEnab
   const hasTheme = !!(siteTheme?.accent || siteTheme?.og_image || siteTheme?.palette?.length)
 
   return (
-    <div className="shrink-0 px-4 py-2.5 flex items-center justify-between border-b border-white/6 bg-cyber-surface/60 animate-fade-in">
+    <div className="shrink-0 px-3 sm:px-4 py-2 sm:py-2.5 flex items-center justify-between border-b border-white/6 bg-cyber-surface/60 animate-fade-in">
       <div className="flex items-center gap-3 min-w-0">
         {favicon && (
           <img src={favicon} alt="" className="h-5 w-5 rounded shrink-0" onError={(e) => e.target.style.display = 'none'} />
@@ -101,7 +101,7 @@ function SessionBar({ title, sessionId, pageCount, siteTheme, onReset, themeEnab
           </span>
         )}
 
-        <span className="rounded-full px-3 py-1 text-[11px] border border-cyber-green/20 bg-cyber-green/5 text-cyber-green">
+        <span className="hidden sm:inline-flex rounded-full px-3 py-1 text-[11px] border border-cyber-green/20 bg-cyber-green/5 text-cyber-green">
           Ready
         </span>
 
@@ -365,8 +365,8 @@ function QueryCard({ query, onClick }) {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 8, scale: 0.93 }}
             transition={{ type: 'spring', stiffness: 420, damping: 28 }}
-            className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 z-50 pointer-events-none"
-            style={{ width: 230 }}
+            className="absolute bottom-full mb-2 right-0 md:right-auto md:left-1/2 md:-translate-x-1/2 z-50 pointer-events-none"
+            style={{ width: 'min(230px, calc(100vw - 2rem))' }}
           >
             <div
               className="rounded-2xl overflow-hidden"
@@ -414,14 +414,14 @@ function SectionDivider({ label, color = 'rgba(0,212,255,0.2)', delay = 0 }) {
 
 function LandingView({ exampleQueries, onQuerySelect }) {
   return (
-    <div className="flex flex-col items-center justify-center h-full text-center px-8 py-6 animate-fade-in" style={{ gap: '1.75rem' }} >
+    <div className="flex flex-col items-center justify-center min-h-full text-center px-4 sm:px-8 py-6 animate-fade-in" style={{ gap: '1.75rem' }} >
 
       {/* ── Section 1 · Hero ─────────────────────────────────────── */}
       <div className="space-y-4" >
         <AnimatedGlobe />
 
         <motion.h2
-          className="font-heading font-bold text-[2.6rem] leading-[1.12] text-gradient"
+          className="font-heading font-bold text-[1.8rem] sm:text-[2.4rem] md:text-[2.6rem] leading-[1.12] text-gradient"
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.55, ease: 'easeOut', delay: 0.1 }}
@@ -757,7 +757,7 @@ export default function App() {
 
   return (
     <div
-      className={['h-screen flex flex-col overflow-hidden bg-cyber-bg', !themeEnabled ? 'bg-grid' : ''].join(' ')}
+      className={['h-dvh flex flex-col overflow-hidden bg-cyber-bg', !themeEnabled ? 'bg-grid' : ''].join(' ')}
       style={themedBgStyle}
     >
       {/* Processing overlay — full screen */}
@@ -816,7 +816,7 @@ export default function App() {
 
             {/* Sub-header tab bar */}
             <div className="shrink-0 border-b border-white/6 bg-cyber-surface/40">
-              <div className="flex items-center gap-1 px-4 py-2">
+              <div className="flex items-center gap-1 px-4 py-2 overflow-x-auto scrollbar-none">
                 {TABS.map(({ id, label, Icon }) => {
                   const isActive = activeTab === id
                   const locked = artifactsLoading && id !== 'insights'
@@ -826,7 +826,7 @@ export default function App() {
                       onClick={() => !locked && setActiveTab(id)}
                       disabled={locked}
                       className={[
-                        'inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-medium font-heading transition-colors duration-200',
+                        'shrink-0 inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-medium font-heading transition-colors duration-200',
                         isActive ? 'tab-active' : 'text-cyber-muted hover:text-white hover:bg-white/5',
                         locked ? 'opacity-35 cursor-not-allowed' : 'cursor-pointer',
                       ].join(' ')}
@@ -893,7 +893,7 @@ export default function App() {
         )}
 
         {!sessionReady && appState !== 'processing' && (
-          <div className="flex-1">
+          <div className="flex-1 overflow-y-auto">
             <LandingView
               exampleQueries={exampleQueries}
               onQuerySelect={(q) => setQuestion(q)}

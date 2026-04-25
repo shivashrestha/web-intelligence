@@ -213,7 +213,7 @@ const FEATURES = [
   },
   {
     label: 'AI Q&A',
-    desc: 'Ask questions — answers sourced from page content',
+    desc: 'Ask questions & answers sourced from page content',
     Icon: BrainCircuit,
     g1: '#8B5CF6', g2: '#6366F1',
     Preview: RAGPreview,
@@ -319,8 +319,8 @@ function FeatureCard({ feature, index }) {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 8, scale: 0.94 }}
             transition={{ type: 'spring', stiffness: 400, damping: 26 }}
-            className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 z-50 pointer-events-none"
-            style={{ width: 268 }}
+            className="absolute bottom-full mb-2 right-0 lg:right-auto lg:left-1/2 lg:-translate-x-1/2 z-50 pointer-events-none"
+            style={{ width: 'min(268px, calc(100vw - 2rem))' }}
           >
             <div
               className="rounded-2xl overflow-hidden"
