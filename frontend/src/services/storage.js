@@ -1,4 +1,14 @@
 const LS_KEY = 'wi_sessions'
+const BROWSER_TOKEN_KEY = 'wi_browser_token'
+
+export function getBrowserToken() {
+  let token = localStorage.getItem(BROWSER_TOKEN_KEY)
+  if (!token) {
+    token = crypto.randomUUID()
+    localStorage.setItem(BROWSER_TOKEN_KEY, token)
+  }
+  return token
+}
 
 function encode(data) {
   return btoa(encodeURIComponent(JSON.stringify(data)))
