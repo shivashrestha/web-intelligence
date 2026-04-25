@@ -86,8 +86,9 @@ def answer_question(
     session_id: str,
     question: str,
     top_k: int = 12,
+    vector_namespace: str | None = None,
 ) -> Dict[str, Any]:
-    results = store.query(session_id, question, top_k=top_k)
+    results = store.query(session_id, question, top_k=top_k, vector_namespace=vector_namespace)
     chunks = [r["chunk"] for r in results]
     context = _build_context(chunks)
 
@@ -155,11 +156,11 @@ _INSIGHT_QUERIES = [
 ]
 
 
-def build_insights(store: EmbeddingStore, session_id: str) -> Dict[str, Any]:
+def build_insights(store: EmbeddingStore, session_id: str, vector_namespace: str | None = None) -> Dict[str, Any]:
     seen_ids: set = set()
     chunks: list = []
     for query in _INSIGHT_QUERIES:
-        results = store.query(session_id, query, top_k=8)
+        results = store.query(session_id, query, top_k=8, vector_namespace=vector_namespace)
         for r in results:
             c = r["chunk"]
             uid = c.get("chunk_id") or c["url"] + c["text"][:40]

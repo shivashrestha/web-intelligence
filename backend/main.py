@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import uuid
 import psycopg2
 import psycopg2.extras
 from pathlib import Path
@@ -12,7 +13,7 @@ load_dotenv(Path(__file__).resolve().parent / ".env")
 from typing import List, Optional, Dict, Any
 from datetime import datetime, timezone
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
@@ -30,6 +31,7 @@ SESSION_DIR.mkdir(parents=True, exist_ok=True)
 INDEX_DIR.mkdir(parents=True, exist_ok=True)
 
 _SESSION_ID_RE = re.compile(r'^[a-zA-Z0-9_\-]{8,128}$')
+_BROWSER_TOKEN_RE = re.compile(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$')
 
 SUPABASE_DSN = os.getenv("SUPABASE_CONNECTION_STRING", "")
 
@@ -118,6 +120,24 @@ def _load_session(session_id: str) -> Dict[str, Any]:
     if not path.exists():
         raise HTTPException(status_code=404, detail="Session not found")
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _get_browser_token(request: Request) -> str:
+    token = request.headers.get("X-Browser-Token", "")
+    if not token or not _BROWSER_TOKEN_RE.match(token):
+        raise HTTPException(status_code=401, detail="Missing or invalid browser token.")
+    return token
+
+
+def _load_session_owned(session_id: str, browser_token: str) -> Dict[str, Any]:
+    payload = _load_session(session_id)
+    if payload.get("browser_token") != browser_token:
+        raise HTTPException(status_code=403, detail="Access denied.")
+    return payload
+
+
+def _vector_ns(payload: Dict[str, Any]) -> str:
+    return payload.get("vector_namespace", payload["session_id"])
 
 
 def _aggregate_security(pages: List[Dict[str, Any]]) -> Dict[str, Any]:
@@ -212,31 +232,44 @@ def example_queries():
 
 
 @app.delete("/api/sessions/{session_id}")
-def delete_session(session_id: str):
+def delete_session(session_id: str, request: Request):
+    browser_token = _get_browser_token(request)
+    payload = _load_session_owned(session_id, browser_token)
     path = _session_file(session_id)
-    if not path.exists():
-        raise HTTPException(status_code=404, detail="Session not found")
     path.unlink()
-    store.delete(session_id)
+    store.delete(_vector_ns(payload))
     return {"deleted": session_id}
 
 
 @app.delete("/api/sessions")
-def clear_all_sessions():
+def clear_all_sessions(request: Request):
+    browser_token = _get_browser_token(request)
     deleted = []
     for file in SESSION_DIR.glob("*.json"):
+        try:
+            payload = json.loads(file.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        if payload.get("browser_token") != browser_token:
+            continue
         sid = file.stem
         file.unlink()
-        store.delete(sid)
+        store.delete(_vector_ns(payload))
         deleted.append(sid)
     return {"deleted": deleted, "count": len(deleted)}
 
 
 @app.get("/api/sessions")
-def list_sessions():
+def list_sessions(request: Request):
+    browser_token = _get_browser_token(request)
     sessions = []
     for file in sorted(SESSION_DIR.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True):
-        payload = json.loads(file.read_text(encoding="utf-8"))
+        try:
+            payload = json.loads(file.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        if payload.get("browser_token") != browser_token:
+            continue
         sessions.append({
             "session_id": payload["session_id"],
             "urls": payload["urls"],
@@ -248,7 +281,8 @@ def list_sessions():
 
 
 @app.post("/api/process")
-def process_urls(req: ProcessRequest):
+def process_urls(req: ProcessRequest, request: Request):
+    browser_token = _get_browser_token(request)
     urls = [u.strip() for u in req.urls if u and u.strip()]
     if not urls:
         raise HTTPException(status_code=400, detail="Provide at least one URL.")
@@ -264,15 +298,37 @@ def process_urls(req: ProcessRequest):
     existing = store.load(session_id)
     if existing is not None:
         payload = _load_session(session_id)
+        if payload.get("browser_token") == browser_token:
+            return {
+                "session_id": session_id,
+                "title": payload["title"],
+                "urls": payload["urls"],
+                "page_count": payload.get("page_count", len(payload.get("pages", []))),
+                "status": "cached",
+                "message": "Loaded cached knowledge base.",
+                "created_at": payload["created_at"],
+                "theme": payload.get("theme", {}),
+            }
+        # Different browser owns this session — fork it so this browser gets their own entry
+        forked_id = str(uuid.uuid4()).replace("-", "")[:16]
+        store.fork_chunks(session_id, forked_id)
+        forked_payload = {
+            **payload,
+            "session_id": forked_id,
+            "browser_token": browser_token,
+            "vector_namespace": _vector_ns(payload),
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }
+        _save_session(forked_id, forked_payload)
         return {
-            "session_id": session_id,
-            "title": payload["title"],
-            "urls": payload["urls"],
-            "page_count": payload.get("page_count", len(payload.get("pages", []))),
+            "session_id": forked_id,
+            "title": forked_payload["title"],
+            "urls": forked_payload["urls"],
+            "page_count": forked_payload.get("page_count", len(forked_payload.get("pages", []))),
             "status": "cached",
             "message": "Loaded cached knowledge base.",
-            "created_at": payload["created_at"],
-            "theme": payload.get("theme", {}),
+            "created_at": forked_payload["created_at"],
+            "theme": forked_payload.get("theme", {}),
         }
 
     try:
@@ -316,6 +372,8 @@ def process_urls(req: ProcessRequest):
 
     payload = {
         "session_id": session_id,
+        "browser_token": browser_token,
+        "vector_namespace": session_id,
         "title": title,
         "urls": urls,
         "page_count": page_count,
@@ -340,13 +398,15 @@ def process_urls(req: ProcessRequest):
 
 
 @app.get("/api/session/{session_id}")
-def get_session(session_id: str):
-    return _load_session(session_id)
+def get_session(session_id: str, request: Request):
+    browser_token = _get_browser_token(request)
+    return _load_session_owned(session_id, browser_token)
 
 
 @app.get("/api/session/{session_id}/sources")
-def get_sources(session_id: str):
-    payload = _load_session(session_id)
+def get_sources(session_id: str, request: Request):
+    browser_token = _get_browser_token(request)
+    payload = _load_session_owned(session_id, browser_token)
     chunks = payload.get("chunks", [])
     source_map: Dict[str, List] = {}
     for c in chunks:
@@ -359,8 +419,9 @@ def get_sources(session_id: str):
 
 
 @app.get("/api/session/{session_id}/media")
-def get_media(session_id: str):
-    payload = _load_session(session_id)
+def get_media(session_id: str, request: Request):
+    browser_token = _get_browser_token(request)
+    payload = _load_session_owned(session_id, browser_token)
     return {
         "session_id": session_id,
         "images": payload.get("images", []),
@@ -369,18 +430,20 @@ def get_media(session_id: str):
 
 
 @app.post("/api/ask")
-def ask(req: QuestionRequest):
+def ask(req: QuestionRequest, request: Request):
     if not req.question.strip():
         raise HTTPException(status_code=400, detail="Question cannot be empty.")
-    _load_session(req.session_id)
-    result = answer_question(store, req.session_id, req.question, top_k=req.top_k)
+    browser_token = _get_browser_token(request)
+    payload = _load_session_owned(req.session_id, browser_token)
+    result = answer_question(store, req.session_id, req.question, top_k=req.top_k, vector_namespace=_vector_ns(payload))
     return result
 
 
 @app.get("/api/insights/{session_id}")
-def insights(session_id: str):
-    payload = _load_session(session_id)
-    result = build_insights(store, session_id)
+def insights(session_id: str, request: Request):
+    browser_token = _get_browser_token(request)
+    payload = _load_session_owned(session_id, browser_token)
+    result = build_insights(store, session_id, vector_namespace=_vector_ns(payload))
 
     security = _aggregate_security(payload.get("pages", []))
     result["structured"].append(_build_security_block(security))
@@ -390,8 +453,9 @@ def insights(session_id: str):
 
 
 @app.get("/api/compare/{session_id}")
-def compare(session_id: str):
-    payload = _load_session(session_id)
+def compare(session_id: str, request: Request):
+    browser_token = _get_browser_token(request)
+    payload = _load_session_owned(session_id, browser_token)
     pages = payload.get("pages", [])
     rows = []
     for page in pages:

@@ -99,7 +99,15 @@ class EmbeddingStore:
         chunks = [DocumentChunk(**{**c, "anchor_url": c.get("anchor_url", "")}) for c in raw]
         return True, chunks
 
-    def query(self, session_id: str, question: str, top_k: int = 5) -> List[dict]:
+    def fork_chunks(self, source_session_id: str, dest_session_id: str) -> None:
+        """Copy chunks metadata so a forked session can share the same Pinecone vectors."""
+        src = self._chunk_path(source_session_id)
+        if src.exists():
+            import shutil
+            shutil.copy2(src, self._chunk_path(dest_session_id))
+
+    def query(self, session_id: str, question: str, top_k: int = 5, vector_namespace: Optional[str] = None) -> List[dict]:
+        namespace = vector_namespace or session_id
         loaded = self.load(session_id)
         if loaded is None:
             raise ValueError("Knowledge base not found")
@@ -109,7 +117,7 @@ class EmbeddingStore:
         results = self._index.query(
             vector=q_vec,
             top_k=top_k,
-            namespace=session_id,
+            namespace=namespace,
             include_metadata=True,
         )
 
