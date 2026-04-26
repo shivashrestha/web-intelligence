@@ -17,10 +17,10 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from scraper import scrape_many, validate_url
+from scraper import scrape_many, validate_url, Section
 from processor import chunk_pages, build_source_map
 from embeddings import EmbeddingStore, session_id_from_urls
-from rag import answer_question, build_insights
+from rag import answer_question, build_insights, reformat_thin_content
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT / "data"
@@ -195,21 +195,28 @@ def _build_security_block(security: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def _aggregate_media(pages: List[Dict[str, Any]]) -> Dict[str, Any]:
-    """Collect unique images and the best theme from crawled pages."""
-    seen_images: set = set()
-    images: List[str] = []
+    """Collect unique images (with source page URL) and the best theme from crawled pages."""
+    seen_urls: set = set()
+    images: List[Dict[str, str]] = []
     theme: Dict[str, Any] = {}
 
     for page in pages:
-        # Prefer the first page's theme (seed URL = most authoritative brand signal)
         if not theme and page.get("theme"):
             theme = page["theme"]
 
+        page_url = page.get("final_url") or page.get("url", "")
         for img in page.get("images", []):
-            if img and img not in seen_images:
-                seen_images.add(img)
-                images.append(img)
-        if len(images) >= 60:
+            # Support both legacy str format and new dict format
+            if isinstance(img, dict):
+                img_url = img.get("url", "")
+                src_page = img.get("page_url", page_url)
+            else:
+                img_url = img
+                src_page = page_url
+            if img_url and img_url not in seen_urls:
+                seen_urls.add(img_url)
+                images.append({"url": img_url, "page_url": src_page})
+        if len(images) >= 50:
             break
 
     return {"images": images, "theme": theme}
@@ -283,7 +290,14 @@ def list_sessions(request: Request):
 @app.post("/api/process")
 def process_urls(req: ProcessRequest, request: Request):
     browser_token = _get_browser_token(request)
-    urls = [u.strip() for u in req.urls if u and u.strip()]
+    # Deduplicate while preserving order
+    _seen: set = set()
+    urls = []
+    for u in req.urls:
+        u = u.strip()
+        if u and u.lower() not in _seen:
+            _seen.add(u.lower())
+            urls.append(u)
     if not urls:
         raise HTTPException(status_code=400, detail="Provide at least one URL.")
     if len(urls) > 10:
@@ -332,7 +346,7 @@ def process_urls(req: ProcessRequest, request: Request):
         }
 
     try:
-        pages = scrape_many(urls, use_cache=True, max_pages_per_url=25)
+        pages = scrape_many(urls, use_cache=True, max_pages_per_url=50)
     except Exception as exc:
         msg = str(exc).lower()
         if any(k in msg for k in ("name resolution", "nodename", "getaddressinfo", "no address", "dns")):
@@ -355,6 +369,18 @@ def process_urls(req: ProcessRequest, request: Request):
                 "or the domain does not exist. Verify the URL is correct and publicly accessible."
             ),
         )
+    # LLM reformat for pages with very thin content (likely scraping issues)
+    for page in pages:
+        section_chars = sum(len(s.text) for s in page.sections)
+        if 0 < section_chars < 300 and page.raw_text:
+            try:
+                reformatted = reformat_thin_content(page.final_url, page.title, page.raw_text)
+                if reformatted and reformatted != page.raw_text:
+                    page.sections = [Section(title=page.title, text=reformatted, anchor="")]
+                    page.raw_text = reformatted
+            except Exception:
+                pass  # keep original on LLM failure
+
     chunks = chunk_pages(pages)
     if not chunks:
         raise HTTPException(

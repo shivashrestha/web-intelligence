@@ -18,6 +18,7 @@ PINECONE_EMBED_MODEL = "multilingual-e5-large"
 EMBEDDING_DIM = 1024
 _EMBED_BATCH = 96
 _UPSERT_BATCH = 100
+_MIN_SCORE = 0.20
 
 
 @dataclass
@@ -123,6 +124,8 @@ class EmbeddingStore:
 
         output = []
         for match in results.matches:
+            if float(match.score) < _MIN_SCORE:
+                continue
             idx = int(match.metadata["idx"])
             if idx < len(chunks):
                 output.append({"score": float(match.score), "chunk": chunks[idx].to_dict()})

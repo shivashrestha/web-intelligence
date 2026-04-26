@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Image, ExternalLink, X, ZoomIn } from 'lucide-react'
+import { Image, ExternalLink, X, ZoomIn, LayoutGrid } from 'lucide-react'
 
-function ImageLightbox({ src, onClose }) {
+const GRID_OPTIONS = [2, 3, 4, 5, 6]
+
+function ImageLightbox({ imgUrl, pageUrl, onClose }) {
   return (
     <motion.div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
@@ -21,20 +23,31 @@ function ImageLightbox({ src, onClose }) {
         onClick={(e) => e.stopPropagation()}
       >
         <img
-          src={src}
+          src={imgUrl}
           alt=""
-          className="max-w-full max-h-[82vh] rounded-2xl object-contain shadow-elevated"
+          className="max-w-full max-h-[80vh] rounded-2xl object-contain shadow-elevated"
         />
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap justify-center">
           <a
-            href={src}
+            href={imgUrl}
             target="_blank"
             rel="noreferrer"
             className="flex items-center gap-2 glass rounded-xl px-4 py-2 text-xs text-cyber-muted hover:text-white transition-colors"
           >
             <ExternalLink className="h-3.5 w-3.5" />
-            Open original
+            Open image
           </a>
+          {pageUrl && (
+            <a
+              href={pageUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-2 glass rounded-xl px-4 py-2 text-xs text-cyber-muted hover:text-cyber-cyan transition-colors max-w-[260px]"
+            >
+              <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">{pageUrl}</span>
+            </a>
+          )}
           <button
             onClick={onClose}
             className="flex items-center gap-2 glass rounded-xl px-4 py-2 text-xs text-cyber-muted hover:text-white transition-colors"
@@ -48,10 +61,14 @@ function ImageLightbox({ src, onClose }) {
   )
 }
 
-function ImageCard({ src, index }) {
+function ImageCard({ img, index }) {
   const [lightbox, setLightbox] = useState(false)
   const [error, setError] = useState(false)
   const [loaded, setLoaded] = useState(false)
+
+  // Support both {url, page_url} dict and legacy plain string
+  const imgUrl = typeof img === 'string' ? img : img.url
+  const pageUrl = typeof img === 'object' ? img.page_url : ''
 
   if (error) return null
 
@@ -67,17 +84,14 @@ function ImageCard({ src, index }) {
         whileTap={{ scale: 0.97 }}
         style={{ transition: 'border-color 0.2s' }}
       >
-        {/* Natural-height image — no max-h, no object-cover → true Pinterest variable heights */}
         <img
-          src={src}
+          src={imgUrl}
           alt=""
           loading="lazy"
           className="w-full h-auto block"
           onLoad={() => setLoaded(true)}
           onError={() => setError(true)}
         />
-
-        {/* Hover overlay */}
         <motion.div
           className="absolute inset-0 flex flex-col items-center justify-center gap-2"
           initial={{ opacity: 0 }}
@@ -91,19 +105,47 @@ function ImageCard({ src, index }) {
           >
             <ZoomIn className="h-4 w-4 text-cyber-cyan" />
           </div>
+          {pageUrl && (
+            <span className="text-[9px] text-white/60 max-w-[90%] truncate px-2">{pageUrl.replace(/^https?:\/\//, '')}</span>
+          )}
         </motion.div>
       </motion.button>
 
       <AnimatePresence>
-        {lightbox && <ImageLightbox src={src} onClose={() => setLightbox(false)} />}
+        {lightbox && <ImageLightbox imgUrl={imgUrl} pageUrl={pageUrl} onClose={() => setLightbox(false)} />}
       </AnimatePresence>
     </>
+  )
+}
+
+// ── Grid size toggle ──────────────────────────────────────────────────────────
+function GridSizeToggle({ value, onChange }) {
+  return (
+    <div className="flex items-center gap-1.5">
+      <LayoutGrid className="h-3.5 w-3.5 text-cyber-muted shrink-0" />
+      <span className="text-[11px] text-cyber-muted mr-1">Grid</span>
+      {GRID_OPTIONS.map(n => (
+        <button
+          key={n}
+          onClick={() => onChange(n)}
+          className={[
+            'h-7 w-7 rounded-lg text-xs font-mono font-semibold transition-all',
+            value === n
+              ? 'bg-cyber-cyan/15 border border-cyber-cyan/40 text-cyber-cyan'
+              : 'glass text-cyber-muted hover:text-white hover:border-white/20',
+          ].join(' ')}
+        >
+          {n}
+        </button>
+      ))}
+    </div>
   )
 }
 
 export default function MediaPanel({ media, siteTheme }) {
   const images = media?.images || []
   const accent = media?.theme?.accent || siteTheme?.accent
+  const [cols, setCols] = useState(3)
 
   if (!images.length) {
     return (
@@ -116,30 +158,22 @@ export default function MediaPanel({ media, siteTheme }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      {/* Top bar: count + grid selector */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-2">
           <Image className="h-4 w-4" style={{ color: accent || '#00D4FF' }} />
-          <p className="text-sm font-heading font-semibold text-white">{images.length} Pins</p>
+          <p className="text-sm font-heading font-semibold text-white">{images.length} images</p>
         </div>
+        <GridSizeToggle value={cols} onChange={setCols} />
       </div>
 
-      {/* Pinterest masonry: CSS columns, natural-height images, break-inside-avoid */}
+      {/* Masonry grid — column count controlled by state */}
       <div
-        style={{
-          columns: '2',
-          columnGap: '0.5rem',
-        }}
-        className="pinterest-grid"
+        style={{ columns: cols, columnGap: '0.625rem' }}
       >
-        <style>{`
-          @media (min-width: 480px)  { .pinterest-grid { columns: 2; column-gap: 0.625rem; } }
-          @media (min-width: 640px)  { .pinterest-grid { columns: 3; column-gap: 0.75rem; } }
-          @media (min-width: 768px)  { .pinterest-grid { columns: 4; } }
-          @media (min-width: 1280px) { .pinterest-grid { columns: 5; } }
-        `}</style>
-        {images.map((src, i) => (
+        {images.map((img, i) => (
           <div key={i} className="break-inside-avoid mb-2 sm:mb-3">
-            <ImageCard src={src} index={i} />
+            <ImageCard img={img} index={i} />
           </div>
         ))}
       </div>

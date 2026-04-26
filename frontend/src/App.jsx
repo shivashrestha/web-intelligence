@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Sparkles, SmilePlus, Globe, BarChart3, FileText, Image, RotateCcw, Palette, MessageSquare, Info, Zap, ArrowRight } from 'lucide-react'
+import { Sparkles, SmilePlus, Globe, BarChart3, FileText, Image, RotateCcw, Palette, Info, Zap, ArrowRight } from 'lucide-react'
 import logo from '../logo.png'
 import { useSEO } from './hooks/useSEO'
 
@@ -8,8 +8,8 @@ import AppHeader from './components/AppHeader'
 import Loader from './components/Loader'
 import ErrorModal from './components/ErrorModal'
 import FeatureBadges from './components/FeatureBadges'
-import ChatPanel from './components/ChatPanel'
 import InsightPanel from './components/InsightPanel'
+import QAChatbot from './components/QAChatbot'
 import SourcesPanel from './components/SourcesPanel'
 import MediaPanel from './components/MediaPanel'
 import Footer from './components/Footer'
@@ -19,7 +19,7 @@ import ChatWidget from './components/ChatWidget'
 import CollaborateModal from './components/CollaborateModal'
 
 import {
-  askQuestion, loadInsights, loadMedia,
+  loadInsights, loadMedia,
   loadSessions, loadSources, processUrls,
   deleteSession, clearAllSessions, loadExampleQueries,
 } from './services/api'
@@ -30,7 +30,6 @@ import {
 
 const TABS = [
   { id: 'insights', label: 'Insights', Icon: BarChart3 },
-  { id: 'qa',       label: 'Q&A',      Icon: MessageSquare },
   { id: 'media',    label: 'Media',    Icon: Image },
   { id: 'sources',  label: 'Sources',  Icon: FileText },
 ]
@@ -501,9 +500,6 @@ export default function App() {
   const [processError, setProcessError] = useState('')
 
   const [activeTab, setActiveTab] = useState('insights')
-  const [messages, setMessages] = useState([])
-  const [question, setQuestion] = useState('')
-  const [answerLoading, setAnswerLoading] = useState(false)
   const [insights, setInsights] = useState(null)
   const [sources, setSources] = useState([])
   const [media, setMedia] = useState(null)
@@ -578,7 +574,6 @@ export default function App() {
     setProcessError('')
     setSiteTheme(null)
     setThemeEnabled(false)
-    setMessages([])
     setInsights(null)
     setSources([])
     setMedia(null)
@@ -665,7 +660,6 @@ export default function App() {
       if (res.page_count) setPageCount(res.page_count)
       if (res.theme && Object.keys(res.theme).length) setSiteTheme(res.theme)
       sessionStorage.setItem('activeSessionId', res.session_id)
-      setMessages([])
 
       // Step 3: pre-fetch insights + media + sources while loader still visible
       setProcessStep(3)
@@ -693,7 +687,6 @@ export default function App() {
     setSources([])
     setMedia(null)
     setPageCount(0)
-    setMessages([])
     setActiveTab('insights')
 
     const primaryUrl = (session.urls || [])[0] || ''
@@ -705,25 +698,6 @@ export default function App() {
     setSiteTheme(session.theme || null)
 
     await refreshArtifacts(session.session_id)
-  }
-
-  async function handleAsk() {
-    if (!sessionReady || !question.trim()) return
-    const q = question.trim()
-    setQuestion('')
-    setAnswerLoading(true)
-    setMessages((prev) => [...prev, { role: 'user', content: q, sources: [] }])
-    try {
-      const res = await askQuestion(sessionId, q)
-      const answer = /couldn't find this information in the crawled content/i.test(res.answer)
-        ? "I couldn't find this information in the crawled content."
-        : res.answer
-      setMessages((prev) => [...prev, { role: 'assistant', content: answer, sources: res.sources || [] }])
-    } catch (e) {
-      setMessages((prev) => [...prev, { role: 'assistant', content: `Error: ${e.message || 'Failed to get an answer.'}`, sources: [] }])
-    } finally {
-      setAnswerLoading(false)
-    }
   }
 
   const accent = siteTheme?.accent
@@ -868,17 +842,6 @@ export default function App() {
                   <Footer onPrivacyClick={() => setShowPrivacy(true)} onCookiesClick={() => setShowCookies(true)} />
                 </div>
               )}
-              {activeTab === 'qa' && (
-                <ChatPanel
-                  messages={messages}
-                  question={question}
-                  onQuestionChange={setQuestion}
-                  onAsk={handleAsk}
-                  loading={answerLoading}
-                  sessionReady={sessionReady}
-                  siteTheme={themeEnabled ? siteTheme : null}
-                />
-              )}
               {activeTab === 'media' && (
                 <div className="h-full overflow-y-auto p-4 animate-fade-in">
                   <MediaPanel media={media} siteTheme={siteTheme} />
@@ -899,12 +862,15 @@ export default function App() {
           <div className="flex-1 overflow-y-auto">
             <LandingView
               exampleQueries={exampleQueries}
-              onQuerySelect={(q) => setQuestion(q)}
+              onQuerySelect={(q) => setUrl(q)}
             />
             <Footer onPrivacyClick={() => setShowPrivacy(true)} onCookiesClick={() => setShowCookies(true)} />
           </div>
         )}
       </div>
+
+      {/* Floating Q&A chatbot — visible when a session is active */}
+      {sessionReady && <QAChatbot sessionId={sessionId} sessionReady={sessionReady} />}
     </div>
   )
 }

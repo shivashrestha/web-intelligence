@@ -146,12 +146,14 @@ ANSWER:"""
 # ---------------------------------------------------------------------------
 
 _INSIGHT_QUERIES = [
-    "what is this company product who made it mission value proposition",
+    "what is this company product who made it mission value proposition introduction",
+    "key features capabilities tools what the product does functionalities",
     "business model revenue how they make money subscription SaaS pricing freemium",
-    "features capabilities tools what the product does functionalities",
     "target audience customers who is this for industries roles company size use cases",
     "technology stack frameworks APIs integrations platforms certifications security",
     "pricing plans cost tiers free trial enterprise contact sales",
+    "main topics themes subjects semantic analysis content coverage",
+    "headlines headings sections overview structure site map navigation",
     "pros advantages strengths cons limitations drawbacks missing features complaints",
 ]
 
@@ -170,38 +172,42 @@ def build_insights(store: EmbeddingStore, session_id: str, vector_namespace: str
 
     context = _build_context(chunks)
 
-    prompt = f"""You are a business intelligence analyst. Read the website content below and fill in all 7 sections.
+    prompt = f"""You are a business intelligence analyst. Analyse the website content below and fill all 9 sections.
 
-RULES:
-- Base every bullet on content present below. Reasonable inference allowed (e.g. monthly subscription plan → SaaS model).
-- Do NOT fabricate prices, feature names, or company details not in the content.
+STRICT ANTI-HALLUCINATION RULES — read carefully:
+- Every single bullet MUST be directly supported by text present in the CONTENT section below.
+- NEVER invent, guess, or infer details not explicitly stated: no made-up prices, feature names, company names, technology names, or statistics.
+- Permitted inference: structural/logical only (e.g. a page listing monthly/annual billing → SaaS model; a "Sign Up Free" CTA → free tier exists).
 - If a section has zero relevant content, write exactly one item: "No source found."
-- If a section has ANY relevant content, omit "No source found" entirely — only real bullets.
-- Extract as much as the content supports. Do not leave sections thin when content exists.
+- If a section has ANY relevant content, omit "No source found" entirely.
 
-Output a JSON array of exactly 7 objects. Each object: "title" (string), "items" (array of strings).
+Output a JSON array of exactly 9 objects. Each object: "title" (string), "items" (array of strings).
 Return ONLY valid JSON. No markdown fences, no preamble.
 
 Sections:
 
-1. "Overview" — 3-5 bullets. What is this product/company, what problem it solves, who built it, core value proposition. Be specific — name the company/product, name the problem.
+1. "Introduction" — 3-5 bullets. What is this product/company, what problem it solves, who built it, core value proposition, and 1-2 headline features. Name the company/product explicitly.
 
-2. "Business Model" — How do they monetize? Subscription, SaaS, ads, marketplace, licensing, freemium, enterprise sales, etc. Infer from pricing structure if not explicitly stated. 2-4 bullets.
+2. "Key Features" — 4-6 bullets. Name each feature exactly as the site calls it. One sentence per feature: name + what it does. No vague generalities.
 
-3. "Key Features" — 4-6 bullets. Name each feature and explain what it does in one sentence. Pull exact feature names from the site. Do not list vague capabilities.
+3. "Business Model" — 2-4 bullets. How do they monetize? Use evidence from pricing pages, CTAs, plan names. State inference clearly: "Implied: SaaS — monthly/annual billing visible."
 
-4. "Target Audience" — 2-4 bullets. Who uses this? Industries, job roles, company sizes, or specific use cases. Infer from product language, examples, and case studies if no explicit statement.
+4. "Target Audience" — 2-4 bullets. Who uses this? Extract industries, job roles, company sizes, or use cases directly from the content.
 
-5. "Technology" — List technologies, frameworks, APIs, platforms, integrations, compliance certifications explicitly mentioned or implied (e.g. "built on AWS", "SOC 2 certified", "Zapier integration"). 1 item per technology. If nothing found, "No source found."
+5. "Technology" — 1 item per technology. Only list tech explicitly named or clearly implied in the content (e.g. "Built on AWS", "Powered by GPT-4", "SOC 2 certified"). If nothing found, "No source found."
 
-6. "Pricing" — Exact plan names and prices. Include free tier, trial, or "contact sales" if stated. Quote prices verbatim. If completely absent from content, "No source found."
+6. "Pricing" — Quote plan names and prices verbatim from content. Include free tier or "contact sales" if stated. Do NOT invent tiers. If absent, "No source found."
 
-7. "Pros & Cons" — Prefix each with "Pro:" or "Con:". 2-4 of each. Pros: real strengths from content. Cons: limitations, gaps in coverage, missing features, or things notably absent.
+7. "Content Themes" — 4-6 bullets. Identify the main semantic topics and subject areas covered across the site. Example: "Developer documentation — API reference, SDK guides, quickstarts." Base on actual section titles and content areas found.
+
+8. "Top Headlines" — List 5-8 of the most prominent headings/section titles found verbatim across the crawled pages. Prefix each with its source URL domain in brackets, e.g. "[example.com] Headline text here."
+
+9. "Pros & Cons" — Prefix each with "Pro:" or "Con:". 2-4 of each. Pros: real strengths from content. Cons: limitations, missing features, or gaps clearly observable from the content.
 
 Formatting:
 - Max 50 words per bullet.
-- No marketing fluff: "cutting-edge", "powerful", "world-class", "innovative".
-- Plain direct English.
+- No marketing fluff: "cutting-edge", "powerful", "world-class", "innovative", "revolutionising".
+- Plain factual English.
 
 CONTENT:
 {context}
@@ -212,6 +218,27 @@ JSON:"""
     structured = _parse_json_blocks(raw)
     structured = _clean_no_source(structured)
     return {"structured": structured, "raw": raw}
+
+
+def reformat_thin_content(url: str, title: str, raw_text: str) -> str:
+    """LLM cleanup for poorly-scraped page content (thin or garbled text)."""
+    if len(raw_text.strip()) < 50:
+        return raw_text
+    prompt = f"""You are a content extraction assistant. The text below was scraped from a web page but may be poorly structured, noisy, or garbled.
+
+URL: {url}
+Title: {title}
+
+Task: Extract and reformat the main informational content as clean, readable paragraphs. Remove navigation text, cookie notices, footers, ads, and repeated boilerplate. Keep only content that would be useful to someone reading about this page's subject.
+
+SCRAPED TEXT:
+{raw_text[:4000]}
+
+CLEANED CONTENT:"""
+    try:
+        return _call_llm(prompt).strip()
+    except Exception:
+        return raw_text
 
 
 def _clean_no_source(blocks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:

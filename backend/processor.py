@@ -27,7 +27,7 @@ def estimate_tokens(text: str) -> int:
     return max(1, len(text.split()) // 0.75)
 
 
-def split_text(text: str, max_words: int = 360, overlap_words: int = 60) -> List[str]:
+def split_text(text: str, max_words: int = 200, overlap_words: int = 30) -> List[str]:
     words = re.split(r"\s+", text.strip())
     words = [w for w in words if w]
     if not words:
@@ -57,6 +57,8 @@ def chunk_pages(
             for part_idx, part in enumerate(
                 split_text(sec.text, max_words=max_words, overlap_words=overlap_words)
             ):
+                if len(part.split()) < 15:
+                    continue
                 payload = f"{page.url}|{page.title}|{sec.title}|{sec_idx}|{part_idx}|{part}"
                 chunk_id = hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
                 source_hash = hashlib.sha256(part.encode("utf-8")).hexdigest()

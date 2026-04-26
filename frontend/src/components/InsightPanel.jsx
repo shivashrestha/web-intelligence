@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Sparkles, TrendingUp, Zap, Users, Cpu, Tag, ThumbsUp,
-  Loader2, X, ChevronRight, Shield, ClipboardList,
+  Loader2, X, ChevronRight, ChevronLeft, Shield, ClipboardList,
+  Presentation, FileDown, Globe, RefreshCw,
 } from 'lucide-react'
 
 const CARD_META = {
@@ -300,11 +301,204 @@ function ScoreBreakdownModal({ breakdown, totalScore, onClose }) {
   )
 }
 
+// ── Presentation slide logic ──────────────────────────────────────────────
+
+function buildSlides(structured, meta) {
+  if (!structured?.length) return []
+  const get = (title) => {
+    const block = structured.find((b) => b.title === title)
+    return (block?.items || []).filter((i) => i.toLowerCase().trim() !== 'no source found.')
+  }
+  const title    = meta?.title || 'Website Analysis'
+  const url      = meta?.urls?.[0] || ''
+  const intro    = get('Introduction') || get('Overview')
+  const features = get('Key Features')
+  const bizModel = get('Business Model')
+  const audience = get('Target Audience')
+  const themes   = get('Content Themes')
+  const pricing  = get('Pricing')
+  const tech     = get('Technology')
+  const proscons = structured.find((b) => b.title === 'Pros & Cons')?.items || []
+  const pros = proscons.filter((i) => i.startsWith('Pro:')).map((i) => i.replace(/^Pro:\s*/i, ''))
+  const cons = proscons.filter((i) => i.startsWith('Con:')).map((i) => i.replace(/^Con:\s*/i, ''))
+  const skip = (arr) => arr.length === 0  // drop slide if no real bullets
+  const takeaway = [...pros.slice(0, 2), ...cons.slice(0, 1), ...intro.slice(0, 2)].filter(Boolean).slice(0, 5)
+  return [
+    { id: 1,  type: 'title',    title, subtitle: url, desc: intro[0] || '', color: '#00D4FF' },
+    !skip(intro.slice(0, 5))            && { id: 2,  type: 'bullets',  title: 'What This Website Does', bullets: intro.slice(0, 5),                           color: '#00D4FF' },
+    !skip(intro.length > 1 ? intro.slice(1, 5) : []) && { id: 3, type: 'bullets', title: 'Value Proposition', bullets: intro.slice(1, 5),                    color: '#8B5CF6' },
+    !skip(features.slice(0, 6))         && { id: 4,  type: 'features', title: 'Key Features',           bullets: features.slice(0, 6),                       color: '#10FFA8' },
+    !skip(audience.slice(0, 5))         && { id: 5,  type: 'bullets',  title: 'Target Audience',         bullets: audience.slice(0, 5),                       color: '#8B5CF6' },
+    !skip(bizModel.slice(0, 4))         && { id: 6,  type: 'bullets',  title: 'Business Model',          bullets: bizModel.slice(0, 4),                       color: '#00D4FF' },
+    !skip([...themes, ...pricing, ...tech].slice(0, 5)) && { id: 7, type: 'bullets', title: 'UX & Content Style', bullets: [...themes, ...pricing, ...tech].slice(0, 5), color: '#10FFA8' },
+    !skip(pros.slice(0, 4))             && { id: 8,  type: 'pros',     title: 'Strengths',               bullets: pros.slice(0, 4),                           color: '#10FFA8' },
+    !skip(cons.slice(0, 4))             && { id: 9,  type: 'cons',     title: 'Weaknesses',               bullets: cons.slice(0, 4),                           color: '#FF4D6D' },
+    !skip(takeaway)                     && { id: 10, type: 'takeaway', title: 'Final Takeaway',           bullets: takeaway,                                   color: '#8B5CF6' },
+  ].filter(Boolean)
+}
+
+function downloadSlidesAsPDF(slides, meta) {
+  const esc = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+  const ac = (hex, op) => {
+    try {
+      const h = hex.replace('#', '')
+      const [r, g, b] = [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16))
+      return `rgba(${r},${g},${b},${op})`
+    } catch { return `rgba(0,212,255,${op})` }
+  }
+  const buildEl = (slide, i, total) => {
+    const prefix = slide.type === 'pros' ? '✓&nbsp;' : slide.type === 'cons' ? '✗&nbsp;' : '→&nbsp;'
+    const bg  = ac(slide.color, 0.05); const brd = ac(slide.color, 0.18)
+    const list = (slide.bullets || []).map((b) => `<li style="background:${bg};border:1px solid ${brd}">${prefix}${esc(b)}</li>`).join('')
+    const glow = `background:radial-gradient(ellipse 80% 70% at 10% 50%,${ac(slide.color, 0.07)} 0%,transparent 70%)`
+    if (slide.type === 'title') return `<div class="slide"><div class="slide-num">${i+1}/${total}</div><div class="badge" style="color:${slide.color};border-color:${brd};background:${bg}">Website Analysis</div><h1 style="color:${slide.color}">${esc(slide.title)}</h1>${slide.subtitle ? `<p class="sub">${esc(slide.subtitle)}</p>` : ''}${slide.desc && slide.desc !== 'Not enough information' ? `<p class="desc">${esc(slide.desc)}</p>` : ''}<div class="wm">Web Intelligence · AI Analysis</div><div class="glow" style="${glow}"></div></div>`
+    return `<div class="slide"><div class="slide-num">${i+1}/${total}</div><h2 style="color:${slide.color}">${esc(slide.title)}</h2><div class="bar" style="background:${slide.color}"></div>${list ? `<ul>${list}</ul>` : ''}<div class="glow" style="${glow}"></div></div>`
+  }
+  const html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>${esc(meta?.title||'Slides')}</title><style>@page{size:A4 landscape;margin:0}*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Segoe UI',system-ui,sans-serif;background:#030b18;color:#e2e8f0;-webkit-print-color-adjust:exact;print-color-adjust:exact}.slide{width:100%;min-height:100vh;padding:60px 80px;display:flex;flex-direction:column;justify-content:center;background:linear-gradient(135deg,#030b18 0%,#0a1628 100%);position:relative;overflow:hidden;page-break-after:always;break-after:page}.glow{position:absolute;inset:0;pointer-events:none}.slide-num{position:absolute;top:20px;right:32px;font-size:11px;color:rgba(255,255,255,.25);font-family:monospace}.badge{display:inline-flex;padding:4px 14px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;border:1px solid;margin-bottom:20px;width:fit-content}h1{font-size:52px;font-weight:800;line-height:1.1;margin-bottom:12px;position:relative}h2{font-size:36px;font-weight:700;line-height:1.2;margin-bottom:8px;position:relative}.bar{height:4px;width:48px;border-radius:4px;margin-bottom:24px;position:relative}.sub{font-size:13px;color:rgba(255,255,255,.4);margin-bottom:20px;position:relative}.desc{font-size:17px;color:rgba(255,255,255,.78);line-height:1.65;max-width:800px;position:relative}.wm{position:absolute;bottom:24px;right:32px;font-size:10px;color:rgba(255,255,255,.18)}ul{list-style:none;display:flex;flex-direction:column;gap:8px;position:relative}li{font-size:14px;color:rgba(255,255,255,.88);line-height:1.55;padding:10px 16px;border-radius:8px;max-width:900px}</style></head><body>${slides.map((s,i)=>buildEl(s,i,slides.length)).join('')}</body></html>`
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' })
+  const url  = URL.createObjectURL(blob)
+  const win  = window.open(url, '_blank')
+  if (win) win.addEventListener('load', () => { setTimeout(() => { win.print(); setTimeout(() => URL.revokeObjectURL(url), 3000) }, 700) })
+}
+
+const slideVariants = {
+  enter:  (dir) => ({ x: dir > 0 ? '55%' : '-55%', opacity: 0, scale: 0.97 }),
+  center: { x: 0, opacity: 1, scale: 1 },
+  exit:   (dir) => ({ x: dir > 0 ? '-55%' : '55%', opacity: 0, scale: 0.97 }),
+}
+
+function SlideContent({ slide }) {
+  const color = slide.color
+  if (slide.type === 'title') {
+    return (
+      <div className="text-center flex flex-col items-center gap-5">
+        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}
+          className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border"
+          style={{ borderColor: hex2rgba(color, 0.35), background: hex2rgba(color, 0.08), color }}>
+          <Globe className="h-3 w-3" /> Website Analysis
+        </motion.div>
+        <motion.h1 initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1, type: 'spring', stiffness: 260, damping: 22 }}
+          className="font-heading font-black text-4xl sm:text-5xl lg:text-6xl leading-tight max-w-3xl" style={{ color }}>
+          {slide.title}
+        </motion.h1>
+        {slide.subtitle && <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.18 }} className="text-sm text-slate-500 truncate max-w-md">{slide.subtitle}</motion.p>}
+        {slide.desc && slide.desc !== 'Not enough information' && (
+          <motion.p initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.22 }} className="text-base sm:text-lg text-slate-300 max-w-2xl leading-relaxed">{slide.desc}</motion.p>
+        )}
+        <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }} className="text-[11px] text-slate-600 tracking-widest uppercase">Web Intelligence · AI Analysis</motion.p>
+      </div>
+    )
+  }
+  const bulletColor = slide.type === 'pros' ? '#10FFA8' : slide.type === 'cons' ? '#FF4D6D' : color
+  const prefix      = slide.type === 'pros' ? '✓' : slide.type === 'cons' ? '✗' : null
+  const gridClass   = slide.type === 'features' && slide.bullets.length >= 4 ? 'grid grid-cols-1 sm:grid-cols-2 gap-3' : 'flex flex-col gap-2.5'
+  return (
+    <div className="space-y-5 w-full">
+      <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.04 }}>
+        <h2 className="font-heading font-bold text-3xl sm:text-4xl" style={{ color }}>{slide.title}</h2>
+        <motion.div initial={{ width: 0 }} animate={{ width: 48 }} transition={{ delay: 0.12, duration: 0.4 }} className="h-1 rounded-full mt-2.5" style={{ background: color }} />
+      </motion.div>
+      <div className={gridClass}>
+        {(slide.bullets || []).map((bullet, i) => (
+          <motion.div key={i} initial={{ opacity: 0, x: -14 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 + i * 0.065, type: 'spring', stiffness: 320, damping: 26 }}
+            className="flex items-start gap-3 rounded-xl px-4 py-3"
+            style={{ background: hex2rgba(bulletColor, 0.05), border: `1px solid ${hex2rgba(bulletColor, 0.18)}` }}>
+            {prefix
+              ? <span className="shrink-0 text-sm font-bold mt-0.5" style={{ color: bulletColor }}>{prefix}</span>
+              : <span className="shrink-0 h-1.5 w-1.5 rounded-full mt-2" style={{ background: bulletColor, opacity: 0.75 }} />}
+            <span className="text-slate-200 text-sm sm:text-base leading-relaxed">{bullet}</span>
+          </motion.div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function PresentationModal({ slides, meta, onClose }) {
+  const [current, setCurrent] = useState(0)
+  const [dir, setDir]         = useState(1)
+  const go   = (idx) => { setDir(idx > current ? 1 : -1); setCurrent(idx) }
+  const next = () => { if (current < slides.length - 1) go(current + 1) }
+  const prev = () => { if (current > 0) go(current - 1) }
+  useEffect(() => {
+    const h = (e) => {
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') next()
+      else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') prev()
+      else if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', h)
+    return () => window.removeEventListener('keydown', h)
+  }, [current, slides.length])
+  const slide    = slides[current]
+  const progress = ((current + 1) / slides.length) * 100
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}
+      className="fixed inset-0 z-[60] flex flex-col" style={{ background: '#030b18' }}>
+      {/* Top bar */}
+      <div className="flex items-center justify-between px-5 py-3 border-b border-white/8 shrink-0">
+        <div className="flex items-center gap-2 min-w-0">
+          <Presentation className="h-4 w-4 text-cyber-cyan shrink-0" />
+          <span className="text-sm font-semibold text-white truncate max-w-xs">{meta?.title || 'Presentation'}</span>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <span className="text-xs text-slate-500 font-mono tabular-nums">{current + 1}&thinsp;/&thinsp;{slides.length}</span>
+          <button onClick={() => downloadSlidesAsPDF(slides, meta)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-white/10 bg-white/5 hover:bg-white/10 text-white transition-colors">
+            <FileDown className="h-3.5 w-3.5" /><span className="hidden sm:inline">Download PDF</span>
+          </button>
+          <button onClick={onClose} className="h-8 w-8 rounded-lg flex items-center justify-center border border-white/10 bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-colors">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+      {/* Progress */}
+      <div className="h-0.5 bg-white/5 shrink-0">
+        <motion.div className="h-full" style={{ background: `linear-gradient(90deg,${slide.color},#8B5CF6)` }}
+          animate={{ width: `${progress}%` }} transition={{ type: 'spring', stiffness: 180, damping: 28 }} />
+      </div>
+      {/* Slide area */}
+      <div className="flex-1 relative overflow-hidden">
+        <motion.div key={slide.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }}
+          className="absolute inset-0 pointer-events-none"
+          style={{ background: `radial-gradient(ellipse 65% 55% at 50% 50%,${hex2rgba(slide.color, 0.05)} 0%,transparent 70%)` }} />
+        <AnimatePresence custom={dir} mode="wait">
+          <motion.div key={current} custom={dir} variants={slideVariants} initial="enter" animate="center" exit="exit"
+            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+            className="absolute inset-0 flex items-center justify-center px-6 sm:px-12 py-8">
+            <div className="w-full max-w-4xl"><SlideContent slide={slide} /></div>
+          </motion.div>
+        </AnimatePresence>
+      </div>
+      {/* Nav */}
+      <div className="flex items-center justify-center gap-4 py-4 border-t border-white/8 shrink-0">
+        <button onClick={prev} disabled={current === 0} className="h-9 w-9 rounded-xl flex items-center justify-center border border-white/10 text-slate-400 hover:text-white hover:border-white/20 transition-all disabled:opacity-25 disabled:cursor-not-allowed">
+          <ChevronLeft className="h-5 w-5" />
+        </button>
+        <div className="flex gap-1.5 items-center">
+          {slides.map((s, i) => (
+            <motion.button key={i} onClick={() => go(i)}
+              animate={{ width: i === current ? 24 : 8, background: i === current ? s.color : 'rgba(255,255,255,0.15)' }}
+              transition={{ type: 'spring', stiffness: 400, damping: 28 }}
+              className="h-2 rounded-full cursor-pointer" />
+          ))}
+        </div>
+        <button onClick={next} disabled={current === slides.length - 1} className="h-9 w-9 rounded-xl flex items-center justify-center border border-white/10 text-slate-400 hover:text-white hover:border-white/20 transition-all disabled:opacity-25 disabled:cursor-not-allowed">
+          <ChevronRight className="h-5 w-5" />
+        </button>
+      </div>
+    </motion.div>
+  )
+}
+
+// ── Analyst report ────────────────────────────────────────────────────────────
+
 function AnalystReport({ structured, accent, security }) {
   const { pros, cons, score, verdict, signals, breakdown } = computeReport(structured, security)
   const scoreColor = score >= 75 ? '#10FFA8' : score >= 52 ? '#00D4FF' : score >= 36 ? '#F59E0B' : '#FF4D6D'
   const balance = score / 100
-  const [showBreakdown, setShowBreakdown] = useState(false)
+  const [showBreakdown, setShowBreakdown]       = useState(false)
+  const [showPresentation, setShowPresentation] = useState(false)
+  const slides = buildSlides(structured, null)
 
   return (
     <>
@@ -334,11 +528,32 @@ function AnalystReport({ structured, accent, security }) {
               {score >= 78 ? 'Strong' : score >= 60 ? 'Solid' : score >= 42 ? 'Mixed' : 'At Risk'}
             </span>
             <button
+              onClick={() => setShowPresentation(true)}
+              title="View as Presentation Slides"
+              className="ml-auto flex items-center gap-1 h-6 px-2 rounded-lg text-[10px] font-semibold border transition-all hover:scale-105 active:scale-95"
+              style={{
+                borderColor: 'rgba(139,92,246,0.45)',
+                background: 'rgba(139,92,246,0.12)',
+                color: '#c4b5fd',
+                boxShadow: '0 0 10px rgba(139,92,246,0.15)',
+              }}
+            >
+              <Presentation className="h-3 w-3" />
+              <span>Slides</span>
+            </button>
+            <button
               onClick={() => setShowBreakdown(true)}
               title="View score methodology"
-              className="ml-auto h-5 w-5 rounded-lg flex items-center justify-center text-cyber-muted hover:text-cyber-cyan hover:bg-cyber-cyan/10 transition-all"
+              className="flex items-center gap-1 h-6 px-2 rounded-lg text-[10px] font-semibold border transition-all hover:scale-105 active:scale-95"
+              style={{
+                borderColor: 'rgba(0,212,255,0.35)',
+                background: 'rgba(0,212,255,0.08)',
+                color: '#67e8f9',
+                boxShadow: '0 0 8px rgba(0,212,255,0.1)',
+              }}
             >
               <ClipboardList className="h-3 w-3" />
+              <span>Score Methodology</span>
             </button>
           </div>
           <p className="text-[11px] text-slate-400 leading-5 italic">"{verdict}"</p>
@@ -401,6 +616,16 @@ function AnalystReport({ structured, accent, security }) {
           breakdown={breakdown}
           totalScore={score}
           onClose={() => setShowBreakdown(false)}
+        />
+      )}
+    </AnimatePresence>
+
+    <AnimatePresence>
+      {showPresentation && slides.length > 0 && (
+        <PresentationModal
+          slides={slides}
+          meta={null}
+          onClose={() => setShowPresentation(false)}
         />
       )}
     </AnimatePresence>
