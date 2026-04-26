@@ -31,10 +31,10 @@ _CONTENT_TAGS = {
     "p", "li", "blockquote", "dt", "dd", "figcaption",
     "pre", "code", "td", "th", "caption", "summary",
 }
-# Reduced noise list — keep nav/header/footer for more coverage
 _NOISE_TAGS = (
     "script", "style", "noscript",
     "iframe", "svg", "canvas", "select",
+    "nav", "footer", "aside",
 )
 _NOISE_CLASSES = (
     "advertisement", "ads-", "-ads", "cookie-banner", "cookie-notice",
@@ -81,7 +81,7 @@ class PageContent:
     raw_text: str
     html_hash: str
     cached: bool = False
-    images: List[str] = field(default_factory=list)
+    images: List[Dict[str, str]] = field(default_factory=list)
     theme: Dict[str, Any] = field(default_factory=dict)
     security: Dict[str, Any] = field(default_factory=dict)
 
@@ -153,8 +153,19 @@ def _should_crawl(url: str) -> bool:
     return True
 
 
+def _normalize_url(url: str) -> str:
+    """Canonical form for dedup and cache keying."""
+    url = url.strip().split('#')[0]
+    parsed = urlparse(url)
+    path = parsed.path.rstrip('/') or '/'
+    normalized = f"{parsed.scheme.lower()}://{parsed.netloc.lower()}{path}"
+    if parsed.query:
+        normalized += f"?{parsed.query}"
+    return normalized
+
+
 def _cache_key(url: str) -> str:
-    return hashlib.sha256(url.encode("utf-8")).hexdigest()
+    return hashlib.sha256(_normalize_url(url).encode("utf-8")).hexdigest()
 
 
 def _clean_text(text: str) -> str:
@@ -308,10 +319,14 @@ _IMG_LAZY_ATTRS = (
 _IMG_SKIP_PATTERNS = ("/icon", "/favicon", "/logo-icon", "sprite", "pixel", "1x1", "blank", "tracking")
 
 
-def _extract_images(response: HtmlResponse) -> List[str]:
-    """Collect meaningful images from the page: og:image first, then content imgs."""
+def _extract_images(response: HtmlResponse, page_url: str = "") -> List[Dict[str, str]]:
+    """Collect meaningful images from the page: og:image first, then content imgs.
+    Returns list of {url, page_url} dicts so callers know which page each image came from."""
     seen: set = set()
-    images: List[str] = []
+    images: List[Dict[str, str]] = []
+
+    def _record(full: str) -> None:
+        images.append({"url": full, "page_url": page_url})
 
     # OG / Twitter hero image takes priority
     og = (
@@ -321,7 +336,7 @@ def _extract_images(response: HtmlResponse) -> List[str]:
     if og:
         full = response.urljoin(og)
         seen.add(full)
-        images.append(full)
+        _record(full)
 
     def _add(src: str) -> None:
         if not src or src.startswith("data:"):
@@ -335,7 +350,7 @@ def _extract_images(response: HtmlResponse) -> List[str]:
         ext = Path(urlparse(full).path).suffix.lower()
         if ext in _IMAGE_EXTENSIONS or not ext:
             seen.add(full)
-            images.append(full)
+            _record(full)
 
     # All common lazy-load data attributes in one selector pass
     attr_sel = ", ".join(f"img::attr({a})" for a in _IMG_LAZY_ATTRS)
@@ -577,7 +592,7 @@ def _parse_to_content(
     title = _page_title(response)
     sections = _extract_sections(response, title)
     raw_text = _clean_text(" ".join(s.text for s in sections))
-    images = _extract_images(response)
+    images = _extract_images(response, page_url=final_url)
     theme = _extract_theme(response)
     security = _check_security(final_url, http_resp)
     return PageContent(
@@ -598,6 +613,13 @@ def _load_page_from_cache(cache_path: Path) -> Tuple[PageContent, List[str]]:
     payload["sections"] = [
         Section(title=s["title"], text=s["text"], anchor=s.get("anchor", ""))
         for s in payload.get("sections", [])
+    ]
+    # Normalise legacy image format (plain strings → {url, page_url} dicts)
+    raw_images = payload.get("images", [])
+    page_url = payload.get("final_url") or payload.get("url", "")
+    payload["images"] = [
+        img if isinstance(img, dict) else {"url": img, "page_url": page_url}
+        for img in raw_images
     ]
     payload["cached"] = True
     page = PageContent(**{k: v for k, v in payload.items() if k in _PC_FIELDS})
@@ -627,9 +649,9 @@ def scrape_url(url: str, timeout: int = 25, use_cache: bool = True) -> PageConte
 
 def crawl_site(
     seed: str,
-    max_pages: int = 25,
-    max_depth: int = 3,
-    max_links_per_page: int = 30,
+    max_pages: int = 50,
+    max_depth: int = 5,
+    max_links_per_page: int = 50,
     timeout: int = 25,
     use_cache: bool = True,
 ) -> List[PageContent]:
@@ -691,11 +713,21 @@ def scrape_many(
     urls: List[str],
     use_cache: bool = True,
     max_workers: int = 4,
-    max_pages_per_url: int = 25,
+    max_pages_per_url: int = 50,
 ) -> List[PageContent]:
     """Crawl each seed URL's domain concurrently, deduplicating by final_url."""
     if not urls:
         return []
+
+    # Deduplicate input URLs (normalized) while preserving order
+    seen_norms: set = set()
+    unique_urls: List[str] = []
+    for u in urls:
+        norm = _normalize_url(u)
+        if norm not in seen_norms:
+            seen_norms.add(norm)
+            unique_urls.append(u)
+    urls = unique_urls
 
     futures: dict = {}
     results: dict = {}
@@ -703,7 +735,7 @@ def scrape_many(
     with ThreadPoolExecutor(max_workers=min(max_workers, len(urls))) as pool:
         for url in urls:
             futures[pool.submit(
-                crawl_site, url, max_pages_per_url, 3, 30, 25, use_cache
+                crawl_site, url, max_pages_per_url, 5, 50, 25, use_cache
             )] = url
         for future in as_completed(futures):
             url = futures[future]

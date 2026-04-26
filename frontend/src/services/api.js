@@ -34,7 +34,7 @@ export async function processUrls(urls, sessionId) {
   })
 }
 
-export async function askQuestion(sessionId, question, topK = 5) {
+export async function askQuestion(sessionId, question, topK = 8) {
   return request('/api/ask', {
     method: 'POST',
     body: JSON.stringify({ session_id: sessionId, question, top_k: topK }),

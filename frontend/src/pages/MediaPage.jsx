@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ArrowLeft, Globe, Image, ExternalLink, X, Palette, RefreshCw } from 'lucide-react'
+import { ArrowLeft, Globe, Image, ExternalLink, X, Palette, RefreshCw, LayoutGrid } from 'lucide-react'
 import { loadMedia, loadSessions } from '../services/api'
 import { useSEO } from '../hooks/useSEO'
 
@@ -61,10 +61,14 @@ function Lightbox({ src, onClose }) {
 
 // ── Image card (Pinterest style) ──────────────────────────────────────────
 
-function ImageCard({ src, idx }) {
+function ImageCard({ img, idx }) {
   const [loaded, setLoaded] = useState(false)
   const [error, setError] = useState(false)
   const [lightbox, setLightbox] = useState(false)
+
+  // Support both {url, page_url} dict and legacy string
+  const src = typeof img === 'string' ? img : img.url
+  const pageUrl = typeof img === 'object' ? img.page_url : ''
 
   if (error) return null
 
@@ -86,14 +90,15 @@ function ImageCard({ src, idx }) {
           onLoad={() => setLoaded(true)}
           onError={() => setError(true)}
         />
-        {/* Hover overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-end p-3">
-          <div className="flex items-center gap-1.5 text-white/80">
-            <ExternalLink className="h-3.5 w-3.5" />
-            <span className="text-[10px]">View</span>
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-end p-3">
+          <div className="flex flex-col gap-0.5 min-w-0">
+            <div className="flex items-center gap-1.5 text-white/80">
+              <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+              <span className="text-[10px]">View</span>
+            </div>
+            {pageUrl && <span className="text-[9px] text-white/50 truncate max-w-[140px]">{pageUrl.replace(/^https?:\/\//, '')}</span>}
           </div>
         </div>
-        {/* Scan line effect on hover */}
         <div className="absolute inset-0 bg-gradient-to-b from-cyber-cyan/0 via-cyber-cyan/5 to-cyber-cyan/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
       </motion.div>
       {lightbox && <Lightbox src={src} onClose={() => setLightbox(false)} />}
@@ -156,7 +161,7 @@ export default function MediaPage() {
   const [meta, setMeta] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [filter, setFilter] = useState('all')
+  const [cols, setCols] = useState(4)
 
   async function fetchAll() {
     setLoading(true)
@@ -294,13 +299,35 @@ export default function MediaPage() {
               <SkeletonGrid />
             ) : images.length > 0 ? (
               <section>
-                <div className="flex items-center gap-2 mb-4">
-                  <Image className="h-4 w-4 text-cyber-muted" />
-                  <h2 className="font-heading font-semibold text-sm text-white">Image Gallery</h2>
+                <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
+                  <div className="flex items-center gap-2">
+                    <Image className="h-4 w-4 text-cyber-muted" />
+                    <h2 className="font-heading font-semibold text-sm text-white">Image Gallery</h2>
+                    <span className="text-[11px] text-cyber-muted">{images.length} images</span>
+                  </div>
+                  {/* Grid size selector */}
+                  <div className="flex items-center gap-1.5">
+                    <LayoutGrid className="h-3.5 w-3.5 text-cyber-muted" />
+                    <span className="text-[11px] text-cyber-muted mr-1">Grid</span>
+                    {[2, 3, 4, 5, 6].map(n => (
+                      <button
+                        key={n}
+                        onClick={() => setCols(n)}
+                        className={[
+                          'h-7 w-7 rounded-lg text-xs font-mono font-semibold transition-all',
+                          cols === n
+                            ? 'bg-cyber-cyan/15 border border-cyber-cyan/40 text-cyber-cyan'
+                            : 'glass text-cyber-muted hover:text-white hover:border-white/20',
+                        ].join(' ')}
+                      >
+                        {n}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-                <div className="columns-2 sm:columns-3 lg:columns-4 gap-2.5">
-                  {images.map((src, i) => (
-                    <ImageCard key={src + i} src={src} idx={i} />
+                <div style={{ columns: cols, columnGap: '0.625rem' }}>
+                  {images.map((img, i) => (
+                    <ImageCard key={i} img={img} idx={i} />
                   ))}
                 </div>
               </section>
