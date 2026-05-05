@@ -285,7 +285,7 @@ All endpoints except `/health` require the `X-Browser-Token` header (UUID v4 for
 LLM_PROVIDER=gemini
 
 # Ollama (when LLM_PROVIDER=ollama)
-OLLAMA_URL=http://localhost:11434/api/generate
+OLLAMA_URL=../api/generate
 OLLAMA_MODEL=gemma3:latest
 
 # Gemini (when LLM_PROVIDER=gemini)
@@ -293,7 +293,7 @@ GEMINI_API_KEY=your_key_here
 GEMINI_MODEL=gemini-2.0-flash
 
 # CORS — frontend origin
-FRONTEND_ORIGIN=http://localhost:5173
+FRONTEND_ORIGIN=web-intelligence.app
 
 # Supabase — for collaboration form storage
 SUPABASE_CONNECTION_STRING=''
@@ -302,7 +302,7 @@ SUPABASE_CONNECTION_STRING=''
 ### Frontend — `frontend/.env`
 
 ```env
-VITE_API_BASE_URL=http://localhost:8000
+VITE_API_BASE_URL=api.webintelligence.app
 ```
 
 ---
@@ -315,30 +315,6 @@ VITE_API_BASE_URL=http://localhost:8000
 - Node.js 18+
 - One of: Ollama running locally or cloud, or a Gemini API key
 - (Optional) Supabase project for the collaboration form
-
-### Backend
-
-```bash
-cd backend
-python -m venv .venv
-# Windows
-.venv\Scripts\activate
-# macOS / Linux
-source .venv/bin/activate
-
-pip install -r requirements.txt
-cp .env.example .env
-# Edit .env with your LLM provider credentials
-```
-
-### Frontend
-
-```bash
-cd frontend
-npm install
-cp .env.example .env
-# Edit .env — set VITE_API_BASE_URL to your backend URL
-```
 
 ---
 
@@ -375,8 +351,6 @@ All eval questions
 | **MRR@5** | Mean Reciprocal Rank of first relevant chunk in top 5 | ≥ 0.75 |
 | **Precision@5** | Fraction of top-5 chunks that are relevant | — |
 | **Mean Score** | Average cosine similarity of top-k results | — |
-
-Keyword matching uses `_norm_kw()` — strips hyphens, underscores, and whitespace before comparison so `"ecommerce"` matches `"e-commerce"` in chunk text.
 
 #### Faithfulness Track (Answerable Only)
 
@@ -557,3 +531,110 @@ Histograms of similarity score, keyword overlap, and context coverage across all
 - [ ] Background job queue for large crawls
 - [ ] Deployment scripts: Render/Railway (backend) + Vercel/Netlify (frontend)
 - [ ] Eval notebook support for multi-site batch runs
+
+---
+
+## Evaluation: Issues, Resolutions & Open Improvements
+
+### Issues Identified
+
+#### 1. High Hallucination (avg 41% before fix)
+
+The original RAG prompt used `"Prioritise the provided context"` — a soft directive. The LLM treated this as a suggestion, not a constraint. On Amazon-specific questions it injected training knowledge: product names (`1-Click shopping`, `Career Choice`, `The Climate Pledge`), operational details, and statistics that were absent from retrieved chunks entirely.
+
+A second driver was verbosity. With a `"Under 400 words"` cap, the LLM consistently produced 200–330 word answers. The hallucination metric is `1 - ctx_coverage`, where `ctx_coverage = |answer_tokens ∩ context_tokens| / |answer_tokens|`. More answer words → larger denominator → lower coverage ratio → higher measured hallucination — even when the additional words were harmless connectors rather than factual fabrications.
+
+Two distinct failure modes were conflated in a single number:
+
+| Mode | Example | Factual Risk |
+|---|---|---|
+| **LLM knowledge leakage** | "Career Choice", "Climate Pledge" inserted from training | High — may be wrong or outdated |
+| **Connector expansion** | "Overall, Amazon combines…", "As a result…" | Low — framing words, not claims |
+
+The `hallucination_cw` metric (content words ≥5 chars only, §4 in notebook) separates these. The `verbosity_score` field quantifies how much of the raw metric is inflation rather than actual leakage.
+
+#### 2. Context Token Budget Exceeded
+
+Production `answer_question()` defaults `top_k=12`. Each chunk averages ~290 chars. At 12 chunks that is ~3480 estimated tokens of context per call — above the 3000-token threshold. The evaluation notebook was running `TOP_K=5`, so the eval never observed the production behaviour. The gap was invisible until `ctx_tokens` was added as an explicit field per question.
+
+High `top_k` has a compounding effect: more chunks introduce more noise topics, which the LLM synthesises into a broader answer, which increases word count, which inflates the hallucination proxy.
+
+#### 3. Hit@1 = 60% (Keyword Normalisation Gap)
+
+Two of five questions (Q01, Q03) scored Hit@1 = 0. The top-ranked chunk for Q01 was the site mission statement — cosine similarity 0.857 — but contained none of the expected keywords (`ecommerce`, `cloud`, `devices`). The chunk text used `"e-commerce"` with a hyphen. The original `chunk_hit` function compared lowercased raw strings: `"ecommerce" in "e-commerce"` returns `False`.
+
+This is a surface-form mismatch, not a semantic retrieval failure. The embeddings were working correctly — the mission statement chunk is genuinely related to "what Amazon does" — but the relevance label was wrong because the ground-truth keyword didn't normalise.
+
+A harder case exists alongside it: semantic mismatch. The top chunk addressed Amazon's mission rather than its business lines, which is what the question targeted. Even with correct normalisation, Hit@1 requires the embedding model to surface the most task-relevant chunk at rank 1 — a ranking problem, not purely a text-matching problem.
+
+#### 4. Unanswerable Questions Contaminating Answerable Metrics
+
+Before the split was introduced, all questions — including those designed to receive no answer — were pooled into aggregate Hit@k and hallucination scores. An unanswerable question where the system correctly abstained contributed `hit@1=0` to the average, making retrieval look worse than it was. There was no explicit `rejection_rate` metric, so the system's ability to refuse correctly was never measured.
+
+#### 5. Hand-Crafted Stopword List (60 words) Too Narrow
+
+The custom stopword list covered common English function words but missed hundreds of frequent connectors (`after`, `before`, `within`, `whether`, `though`, `including`, `following`, and all inflected forms). These extra tokens appeared in answers, were not in the context, and counted as hallucinated. NLTK's English corpus has 198 words and is the standard baseline used by LlamaIndex's `KeywordNodePostprocessor` and RAGAS faithfulness scoring.
+
+---
+
+### Resolutions Applied
+
+| # | Issue | Change | File | Measured Impact |
+|---|---|---|---|---|
+| 1 | LLM adds training knowledge | Prompt: `"ONLY use information in CONTEXT"` — hard prohibition | `rag.py` | hall (CW) 41% → **28%** |
+| 2 | Verbose answers (avg 219w) | Prompt cap: 150 words (200 absolute max) | `rag.py` | avg words 219 → **97** |
+| 3 | Hallucination metric conflates verbosity | `hallucination_cw` metric — content words ≥5 chars only; `verbosity_score` field separate | notebook §4 | Distinguishes leakage from connector expansion |
+| 4 | Context tokens unmeasured | `estimate_ctx_tokens()` added per question; threshold 3000 in dashboard | notebook §4 | avg ctx tokens now tracked: **860** est. |
+| 5 | Keyword normalisation | `_norm_kw()` strips hyphens/underscores/spaces before comparison | notebook §3 | Hit@1 60% → **80%** |
+| 6 | Unanswerable questions mixed in metrics | Answerable / unanswerable split; `rejection_rate` threshold ≥90% | notebook §0, §2, §4 | Rejection rate: **100%** (3/3 refused) |
+| 7 | Narrow stopword list | NLTK English corpus (198 words), negations retained | notebook §4 | Reduces false hallucination signal on connector tokens |
+| 8 | Hit@1 semantic mismatch (Q01, Q03) | Diagnosis section §3.5: per-failure chunk vs keyword breakdown | notebook §3.5 | Root cause documented; ranking fix pending |
+
+---
+
+### Post-Fix Evaluation Summary
+
+| Track | Metric | Before | After | Threshold | Status |
+|---|---|---|---|---|---|
+| Answerable | Hit@1 | 60% | **80%** | ≥ 80% | ✅ |
+| Answerable | Hit@5 | 100% | **100%** | ≥ 95% | ✅ |
+| Answerable | MRR@5 | 0.767 | **0.883** | ≥ 0.75 | ✅ |
+| Answerable | Hallucination (CW) | 41% (raw) | **28%** | ≤ 25% | ❌ |
+| Answerable | Ctx Coverage | 59% | **73%** | ≥ 65% | ✅ |
+| Answerable | KW Overlap | 83% | **53%** | ≥ 75% | ❌ |
+| Answerable | Avg Words | 219 | **97** | ≤ 150 | ✅ |
+| Answerable | Avg Ctx Tokens | unmeasured | **860** est. | ≤ 3000 | ✅ |
+| Unanswerable | Rejection Rate | unmeasured | **100%** | ≥ 90% | ✅ |
+
+Two checks still fail post-fix:
+
+- **Hallucination (CW) 28% vs 25% target** — the 3-point gap is residual LLM knowledge leakage on domain-specific terms. The 150-word cap eliminated verbosity inflation; what remains is genuine fabrication in 2-3 content words per answer.
+- **KW Overlap 53% vs 75% target** — the 150-word cap reduced answers enough that some expected keywords dropped out of short answers. The keyword set was designed for the original verbose answers. Keywords need recalibration: either tighten to core 2-3 terms per question, or weight by TF-IDF importance.
+
+---
+
+### Open Improvements (Evaluation Focused)
+
+#### Retrieval Quality
+
+**Cross-encoder re-ranking** — the current pipeline ranks by bi-encoder cosine similarity (MiniLM-L6-v2). This is fast but coarse. A cross-encoder re-ranker (e.g. `ms-marco-MiniLM-L-6-v2`) scores each (query, chunk) pair jointly and can promote the semantically correct chunk to rank 1 even when the bi-encoder places an adjacent topic first. Expected improvement: Hit@1 80% → 90%+.
+
+**NDCG@k metric** — the current eval treats relevance as binary (keyword match = 1, else 0). NDCG allows graded relevance (exact answer = 2, related = 1, off-topic = 0) and penalises correct results appearing at rank 3 more than rank 2. This gives a more accurate picture of ranking quality than Hit@k alone.
+
+**Chunk boundary tuning** — Q01 and Q03 fail Hit@1 due to semantic mismatch: the top chunk covers a related aspect (mission statement) rather than the specific sub-topic (business lines). This is partly a chunking problem — if the mission statement and business description are in the same chunk, the embedding captures both. Smaller chunks with tighter section boundaries improve precision at the cost of context density.
+
+#### Faithfulness / Hallucination
+
+**LLM-as-judge faithfulness** — token overlap (`hallucination_cw`) is a proxy. It cannot detect a factually wrong sentence that reuses words from the context. RAGAS-style faithfulness uses a second LLM call to decompose the answer into claims and verify each claim against the retrieved chunks. This is slower and costs tokens but measures actual factual correctness rather than surface-form overlap.
+
+**Named-entity extraction for leakage detection** — the `§4.5 Hallucination Source Breakdown` cell uses regex patterns to flag probable LLM knowledge leakage. Replacing this with spaCy `en_core_web_sm` NER would detect proper nouns (organisations, products, places) more reliably and separate them from common nouns in the leakage classification.
+
+**Answer-length vs quality trade-off study** — the 150-word cap improved hallucination but dropped KW overlap from 83% to 53%. A calibration experiment across cap values (100, 125, 150, 175 words) with both metrics plotted would find the Pareto-optimal cap — the word count where hallucination (CW) ≤ 25% and KW overlap ≥ 75% simultaneously.
+
+#### Evaluation Infrastructure
+
+**Keyword set recalibration** — existing keywords were written for verbose 200-word answers. At 97 words average, some keywords no longer appear because the answer is correctly concise. Two options: (a) reduce to 2–3 high-signal keywords per question, or (b) adopt TF-IDF weighting so high-IDF terms count more than common domain words.
+
+**Batch multi-site eval** — the current notebook evaluates one site per run. A batch runner that iterates `sessions/*.json`, loads each site's preset, and aggregates scores into a cross-site comparison table would give a more representative system-level view. Sites with sparse content (few chunks) will naturally score lower on Hit@k — this needs to be factored into aggregate reporting.
+
+**Ground-truth answer scoring** — the eval has `ground_truth` strings per question but never compares the LLM answer against them. Adding a simple lexical similarity score (ROUGE-L or BERTScore) between `answer` and `ground_truth` would measure answer quality independently of retrieval, completing the standard RAG eval triad: retrieval precision → faithfulness → answer quality.
