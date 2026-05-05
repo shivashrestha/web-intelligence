@@ -1,14 +1,14 @@
-import { useEffect, useState } from 'react'
+﻿import { useEffect, useMemo, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Sparkles, SmilePlus, Globe, BarChart3, FileText, Image, RotateCcw, Palette, Info, Zap, ArrowRight } from 'lucide-react'
+import { BarChart3, FileText, Image, RotateCcw, Palette, Info, MonitorPlay, Maximize2, ChevronLeft, ChevronRight, FileDown } from 'lucide-react'
 import logo from '../logo.png'
 import { useSEO } from './hooks/useSEO'
 
+import LandingView from './components/LandingView'
 import AppHeader from './components/AppHeader'
 import Loader from './components/Loader'
 import ErrorModal from './components/ErrorModal'
-import FeatureBadges from './components/FeatureBadges'
-import InsightPanel from './components/InsightPanel'
+import InsightPanel, { buildSlides, downloadSlidesAsPDF, slideVariants, SlideContent, PresentationModal } from './components/InsightPanel'
 import QAChatbot from './components/QAChatbot'
 import SourcesPanel from './components/SourcesPanel'
 import MediaPanel from './components/MediaPanel'
@@ -29,9 +29,10 @@ import {
 } from './services/storage'
 
 const TABS = [
-  { id: 'insights', label: 'Insights', Icon: BarChart3 },
-  { id: 'media',    label: 'Media',    Icon: Image },
-  { id: 'sources',  label: 'Sources',  Icon: FileText },
+  { id: 'insights', label: 'Insights',     Icon: BarChart3    },
+  { id: 'slides',   label: 'Slides',       Icon: MonitorPlay  },
+  { id: 'media',    label: 'Media',        Icon: Image        },
+  { id: 'sources',  label: 'Sources',      Icon: FileText     },
 ]
 
 
@@ -135,351 +136,88 @@ function SessionBar({ title, sessionId, pageCount, siteTheme, onReset, themeEnab
     </div>
   )
 }
+// ── Slides page (embedded tab view) ──────────────────────────────────────
+function SlidesPage({ slides, sessionTitle, onFullscreen }) {
+  const [current, setCurrent] = useState(0)
+  const [dir, setDir]         = useState(1)
+  const go   = (idx) => { setDir(idx > current ? 1 : -1); setCurrent(Math.max(0, Math.min(idx, slides.length - 1))) }
+  const next = () => { if (current < slides.length - 1) go(current + 1) }
+  const prev = () => { if (current > 0) go(current - 1) }
 
-// ── Animated hero globe ───────────────────────────────────────────────────
-function AnimatedGlobe() {
+  useEffect(() => {
+    const h = (e) => {
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') next()
+      else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') prev()
+    }
+    window.addEventListener('keydown', h)
+    return () => window.removeEventListener('keydown', h)
+  }, [current, slides.length])
+
+  if (!slides.length) return null
+  const slide    = slides[current]
+  const progress = ((current + 1) / slides.length) * 100
+
   return (
-    <div className="relative flex items-center justify-center" >
-      {/* Outer ambient pulse ring 1 */}
-      <motion.div
-        className="absolute rounded-full"
-        style={{ width: 130, height: 130, border: '1px solid rgba(0,212,255,0.18)' }}
-        animate={{ scale: [1, 1.7, 1], opacity: [0.5, 0, 0.5] }}
-        transition={{ duration: 3.2, repeat: Infinity, ease: 'easeInOut' }}
-      />
-      {/* Outer ambient pulse ring 2 — offset phase */}
-      <motion.div
-        className="absolute rounded-full"
-        style={{ width: 130, height: 130, border: '1px solid rgba(139,92,246,0.15)' }}
-        animate={{ scale: [1, 2.0, 1], opacity: [0.35, 0, 0.35] }}
-        transition={{ duration: 3.2, repeat: Infinity, ease: 'easeInOut', delay: 1.6 }}
-      />
-
-      {/* Orbit ring 1 — equatorial ellipse spinning */}
-      <motion.div
-        className="absolute"
-        style={{ width: 120, height: 36, borderRadius: '50%', border: '1px solid rgba(0,212,255,0.22)' }}
-        animate={{ rotateZ: [0, 360] }}
-        transition={{ duration: 9, repeat: Infinity, ease: 'linear' }}
-      />
-      {/* Orbit ring 2 — tilted, opposite direction */}
-      <motion.div
-        className="absolute"
-        style={{ width: 115, height: 28, borderRadius: '50%', border: '1px solid rgba(139,92,246,0.18)', rotate: '45deg' }}
-        animate={{ rotateZ: [0, -360] }}
-        transition={{ duration: 13, repeat: Infinity, ease: 'linear' }}
-      />
-
-      {/* Orbiting dot on ring 1 */}
-      <motion.div
-        className="absolute"
-        style={{ width: 120, height: 36 }}
-        animate={{ rotateZ: [0, 360] }}
-        transition={{ duration: 9, repeat: Infinity, ease: 'linear' }}
-      >
-        <div style={{
-          position: 'absolute', top: -3, left: '50%',
-          width: 6, height: 6, borderRadius: '50%',
-          background: '#00D4FF', boxShadow: '0 0 6px #00D4FF',
-          transform: 'translateX(-50%)',
-        }} />
-      </motion.div>
-
-      {/* Floating globe icon */}
-      <motion.div
-        animate={{ y: [0, -7, 0] }}
-        transition={{ duration: 4.5, repeat: Infinity, ease: 'easeInOut' }}
-        style={{ zIndex: 1 }}
-      >
-        {/* Outer glow layer */}
-        <motion.div
-          className="absolute inset-0 rounded-3xl"
-          animate={{ opacity: [0.5, 0.9, 0.5] }}
-          transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
-          style={{
-            background: 'linear-gradient(135deg, rgba(0,212,255,0.3) 0%, rgba(139,92,246,0.3) 100%)',
-            filter: 'blur(14px)',
-            transform: 'scale(1.2)',
-          }}
-        />
-        {/* Icon box */}
-        <div
-          className="relative h-20 w-20 rounded-3xl flex items-center justify-center"
-          style={{ background: 'linear-gradient(135deg, #00D4FF 0%, #8B5CF6 100%)', boxShadow: '0 0 20px rgba(0,212,255,0.35), 0 0 60px rgba(0,212,255,0.1)' }}
-        >
-          {/* Slow spinning globe icon — z-axis rotation = earth spinning on its axis */}
-          <motion.div
-            animate={{ rotate: [0, 360] }}
-            transition={{ duration: 18, repeat: Infinity, ease: 'linear' }}
-          >
-            <img src={logo} alt="Web Intelligence" className="h-15 w-15 object-contain" />
-          </motion.div>
+    <div className="h-full flex flex-col">
+      {/* Top bar */}
+      <div className="shrink-0 flex items-center justify-between px-5 py-3 border-b border-white/6 bg-cyber-surface/30">
+        <div className="flex items-center gap-2 min-w-0">
+          <MonitorPlay className="h-4 w-4 text-cyber-cyan shrink-0" />
+          <span className="text-sm font-semibold text-white truncate max-w-xs">{sessionTitle || 'Presentation'}</span>
         </div>
-      </motion.div>
-    </div>
-  )
-}
-
-// ── RAG flow preview shown on query card hover ────────────────────────────
-function RAGFlowPreview({ query }) {
-  const label = query.length > 26 ? query.slice(0, 24) + '…' : query
-  return (
-    <div className="w-full h-full flex flex-col gap-2 p-3 justify-center">
-      {/* Query */}
-      <motion.div
-        className="rounded-lg px-2.5 py-1.5 text-[9px] font-mono"
-        style={{ background: 'rgba(0,212,255,0.08)', border: '1px solid rgba(0,212,255,0.22)', color: '#00D4FF' }}
-        initial={{ opacity: 0, x: -8 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ delay: 0.05, duration: 0.3, repeat: Infinity, repeatDelay: 3.5 }}
-      >
-        ❯ {label}
-      </motion.div>
-
-      {/* Searching label */}
-      <motion.div
-        className="flex items-center gap-1.5"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.45, duration: 0.25, repeat: Infinity, repeatDelay: 3.5 }}
-      >
-        <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-        <span className="text-[8px] text-cyber-muted tracking-wide">searching pages</span>
-        <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-      </motion.div>
-
-      {/* Matched page cards */}
-      <div className="flex gap-1">
-        {[{ w: '91%' }, { w: '78%' }, { w: '63%' }].map((c, i) => (
-          <motion.div
-            key={i}
-            className="flex-1 rounded px-1.5 py-1"
-            style={{ background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.22)' }}
-            initial={{ opacity: 0, y: 5 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.65 + i * 0.15, duration: 0.3, repeat: Infinity, repeatDelay: 3.5 }}
+        <div className="flex items-center gap-2 shrink-0">
+          <span className="text-xs text-slate-500 font-mono tabular-nums">{current + 1}&thinsp;/&thinsp;{slides.length}</span>
+          <button
+            onClick={() => downloadSlidesAsPDF(slides, { title: sessionTitle })}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-white/10 bg-white/5 hover:bg-white/10 text-white transition-colors"
           >
-            <div className="text-[7px] text-cyber-purple/60 mb-0.5">result {i + 1}</div>
-            <div className="h-1 rounded-full bg-white/5 overflow-hidden">
-              <motion.div
-                className="h-full rounded-full bg-cyber-purple/50"
-                initial={{ width: 0 }}
-                animate={{ width: c.w }}
-                transition={{ delay: 0.7 + i * 0.15, duration: 0.4, repeat: Infinity, repeatDelay: 3.5 }}
-              />
-            </div>
-          </motion.div>
-        ))}
+            <FileDown className="h-3.5 w-3.5" /><span className="hidden sm:inline">PDF</span>
+          </button>
+          <button
+            onClick={onFullscreen}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-white/10 bg-white/5 hover:bg-white/10 text-white transition-colors"
+          >
+            <Maximize2 className="h-3.5 w-3.5" /><span className="hidden sm:inline">Fullscreen</span>
+          </button>
+        </div>
       </div>
-
-      {/* Answer stream */}
-      <motion.div
-        className="rounded-lg px-2.5 py-2"
-        style={{ background: 'rgba(16,255,168,0.05)', border: '1px solid rgba(16,255,168,0.15)' }}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 1.2, duration: 0.3, repeat: Infinity, repeatDelay: 3.5 }}
-      >
-        <div className="flex items-center gap-1.5 mb-1.5">
-          <span className="text-[8px] text-cyber-green/80">Answer</span>
-          <motion.span
-            className="text-[9px] text-cyber-green"
-            animate={{ opacity: [1, 0, 1] }}
-            transition={{ duration: 0.7, repeat: Infinity, delay: 1.2 }}
-          >▌</motion.span>
-        </div>
-        {[{ w: '88%' }, { w: '72%' }, { w: '50%' }].map((l, i) => (
-          <motion.div
-            key={i}
-            className="h-1 rounded-full bg-cyber-green/12 mb-1"
-            initial={{ width: 0 }}
-            animate={{ width: l.w }}
-            transition={{ delay: 1.3 + i * 0.22, duration: 0.5, ease: 'easeOut', repeat: Infinity, repeatDelay: 3.5 }}
-          />
-        ))}
-      </motion.div>
-    </div>
-  )
-}
-
-function QueryCard({ query, onClick }) {
-  const [hovered, setHovered] = useState(false)
-  return (
-    <div
-      className="relative"
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-    >
-      <motion.button
-        onClick={onClick}
-        className="glass rounded-xl px-4 py-4 text-left text-[15px] text-slate-300 hover:text-white transition-all flex items-start gap-3 w-full relative overflow-hidden"
-        style={{ border: '1px solid rgba(0,212,255,0.1)' }}
-        whileHover={{ scale: 1.025, y: -2, borderColor: 'rgba(0,212,255,0.32)', boxShadow: '0 0 18px rgba(0,212,255,0.1), 0 6px 24px rgba(0,0,0,0.35)' }}
-        whileTap={{ scale: 0.975 }}
-        transition={{ type: 'spring', stiffness: 380, damping: 22 }}
-      >
-        {/* Shimmer sweep on hover */}
-        <AnimatePresence>
-          {hovered && (
-            <motion.div
-              className="absolute inset-0 pointer-events-none"
-              initial={{ x: '-110%' }}
-              animate={{ x: '110%' }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.55, ease: 'easeInOut' }}
-              style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(0,212,255,0.09) 50%, transparent 100%)' }}
-            />
-          )}
+      {/* Progress bar */}
+      <div className="h-0.5 bg-white/5 shrink-0">
+        <motion.div className="h-full" style={{ background: `linear-gradient(90deg,${slide.color},#8B5CF6)` }}
+          animate={{ width: `${progress}%` }} transition={{ type: 'spring', stiffness: 180, damping: 28 }} />
+      </div>
+      {/* Slide area */}
+      <div className="flex-1 relative overflow-hidden">
+        <motion.div key={slide.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }}
+          className="absolute inset-0 pointer-events-none"
+          style={{ background: `radial-gradient(ellipse 65% 55% at 50% 50%,${slide.color}0d 0%,transparent 70%)` }} />
+        <AnimatePresence custom={dir} mode="wait">
+          <motion.div key={current} custom={dir} variants={slideVariants} initial="enter" animate="center" exit="exit"
+            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+            className="absolute inset-0 flex items-center justify-center px-6 sm:px-12 py-8">
+            <div className="w-full max-w-4xl"><SlideContent slide={slide} /></div>
+          </motion.div>
         </AnimatePresence>
-
-        <motion.div
-          className="shrink-0 mt-0.5 relative z-10"
-          animate={hovered
-            ? { scale: 1.25, rotate: [0, -12, 12, 0] }
-            : { scale: [1, 1.2, 1], opacity: [0.75, 1, 0.75] }
-          }
-          transition={hovered
-            ? { duration: 0.35, ease: 'easeInOut' }
-            : { duration: 2.8, repeat: Infinity, ease: 'easeInOut' }
-          }
-        >
-          <Zap className="h-4 w-4 text-cyber-cyan" />
-        </motion.div>
-
-        <span className="leading-6 relative z-10 font-medium flex-1">{query}</span>
-
-        <motion.div
-          className="shrink-0 self-center relative z-10 ml-1"
-          animate={hovered ? { opacity: 1, x: 0 } : { opacity: 0, x: -6 }}
-          transition={{ duration: 0.18, ease: 'easeOut' }}
-        >
-          <ArrowRight className="h-3.5 w-3.5 text-cyber-cyan" />
-        </motion.div>
-      </motion.button>
-
-      <AnimatePresence>
-        {hovered && (
-          <motion.div
-            initial={{ opacity: 0, y: 8, scale: 0.93 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 8, scale: 0.93 }}
-            transition={{ type: 'spring', stiffness: 420, damping: 28 }}
-            className="absolute bottom-full mb-2 right-0 md:right-auto md:left-1/2 md:-translate-x-1/2 z-50 pointer-events-none"
-            style={{ width: 'min(230px, calc(100vw - 2rem))' }}
-          >
-            <div
-              className="rounded-2xl overflow-hidden"
-              style={{
-                background: 'rgba(8,18,36,0.98)',
-                border: '1px solid rgba(0,212,255,0.22)',
-                boxShadow: '0 0 40px rgba(0,212,255,0.1), 0 14px 44px rgba(0,0,0,0.6)',
-              }}
-            >
-              <div style={{ height: 185, padding: '4px' }}>
-                <RAGFlowPreview query={query} />
-              </div>
-            </div>
-            <div className="mx-auto mt-0" style={{
-              width: 0, height: 0,
-              borderLeft: '6px solid transparent',
-              borderRight: '6px solid transparent',
-              borderTop: '6px solid rgba(0,212,255,0.22)',
-            }} />
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  )
-}
-
-function SectionDivider({ label, color = 'rgba(0,212,255,0.2)', delay = 0 }) {
-  return (
-    <motion.div
-      className="w-full flex items-center gap-3"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.4, ease: 'easeOut', delay }}
-    >
-      <div className="flex-1 h-px" style={{ background: `linear-gradient(to right, transparent, ${color})` }} />
-      {label && (
-        <span className="text-[10px] font-semibold tracking-widest uppercase shrink-0" style={{ color }}>
-          {label}
-        </span>
-      )}
-      <div className="flex-1 h-px" style={{ background: `linear-gradient(to left, transparent, ${color})` }} />
-    </motion.div>
-  )
-}
-
-function LandingView({ exampleQueries, onQuerySelect }) {
-  return (
-    <div className="flex flex-col items-center justify-center min-h-full text-center px-4 sm:px-8 py-6 animate-fade-in" style={{ gap: '1.75rem' }} >
-
-      {/* ── Section 1 · Hero ─────────────────────────────────────── */}
-      <div className="space-y-4" >
-        <AnimatedGlobe />
-
-        <motion.h2
-          className="font-heading font-bold text-[1.8rem] sm:text-[2.4rem] md:text-[2.6rem] leading-[1.12] text-gradient"
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.55, ease: 'easeOut', delay: 0.1 }}
-        >
-          Website Analysis &amp; Intelligence
-        </motion.h2>
-
-        <motion.p
-          className="text-slate-400 text-[0.9rem] leading-[1.85] text-center mx-auto" style={{ maxWidth: '40rem' }}
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.55, ease: 'easeOut', delay: 0.22 }}
-        >
-          Enter a URL.{' '}
-          <span style={{ color: '#00D4FF' }}>The AI crawls it</span>,{' '}
-          <span style={{ color: '#8B5CF6' }}>extracts intelligence</span>, and{' '}
-          <span style={{ color: '#10FFA8' }}>answers your questions</span>{' '}
-          — with{' '}
-          <span
-            style={{
-              background: 'linear-gradient(90deg, #00D4FF, #8B5CF6)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              fontWeight: 500,
-            }}
-          >source links on every reply</span>.
-        </motion.p>
       </div>
-
-      <SectionDivider label="capabilities" color="rgba(0,212,255,0.22)" delay={0.28} />
-
-      {/* ── Section 2 · Feature cards ────────────────────────────── */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: 'easeOut', delay: 0.34 }}
-      >
-        <FeatureBadges />
-      </motion.div>
-
-      {/* ── Section 3 · Example queries ──────────────────────────── */}
-      {exampleQueries.length > 0 && (
-        <>
-          <SectionDivider label="questions to get you started" color="rgba(139,92,246,0.3)" delay={0.42} />
-          <motion.div
-            className="w-full max-w-xl"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, ease: 'easeOut', delay: 0.46 }}
-            style={{maxWidth:'60rem'}}
-          >
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-              {exampleQueries.slice(0, 3).map((q) => (
-                <QueryCard key={q} query={q} onClick={() => onQuerySelect(q)} />
-              ))}
-            </div>
-          </motion.div>
-        </>
-      )}
+      {/* Nav */}
+      <div className="flex items-center justify-center gap-4 py-4 border-t border-white/6 shrink-0">
+        <button onClick={prev} disabled={current === 0}
+          className="h-9 w-9 rounded-xl flex items-center justify-center border border-white/10 text-slate-400 hover:text-white hover:border-white/20 transition-all disabled:opacity-25 disabled:cursor-not-allowed">
+          <ChevronLeft className="h-5 w-5" />
+        </button>
+        <div className="flex gap-1.5 items-center">
+          {slides.map((s, i) => (
+            <motion.button key={i} onClick={() => go(i)}
+              animate={{ width: i === current ? 24 : 8, background: i === current ? s.color : 'rgba(255,255,255,0.15)' }}
+              transition={{ type: 'spring', stiffness: 400, damping: 28 }}
+              className="h-2 rounded-full cursor-pointer" />
+          ))}
+        </div>
+        <button onClick={next} disabled={current === slides.length - 1}
+          className="h-9 w-9 rounded-xl flex items-center justify-center border border-white/10 text-slate-400 hover:text-white hover:border-white/20 transition-all disabled:opacity-25 disabled:cursor-not-allowed">
+          <ChevronRight className="h-5 w-5" />
+        </button>
+      </div>
     </div>
   )
 }
@@ -509,6 +247,12 @@ export default function App() {
   const [showPrivacy, setShowPrivacy] = useState(false)
   const [showCookies, setShowCookies] = useState(false)
   const [showCollaborate, setShowCollaborate] = useState(false)
+  const [showSlidesFullscreen, setShowSlidesFullscreen] = useState(false)
+
+  const slides = useMemo(
+    () => insights?.structured ? buildSlides(insights.structured, { title: sessionTitle }) : [],
+    [insights, sessionTitle]
+  )
 
   const sessionReady = appState === 'ready' && !!sessionId
 
@@ -578,6 +322,7 @@ export default function App() {
     setSources([])
     setMedia(null)
     setArtifactsLoading(false)
+    setShowSlidesFullscreen(false)
   }
 
   async function handleDeleteSession(sid) {
@@ -793,7 +538,7 @@ export default function App() {
               <div className="flex items-center gap-1 px-4 py-2 overflow-x-auto scrollbar-none">
                 {TABS.map(({ id, label, Icon }) => {
                   const isActive = activeTab === id
-                  const locked = artifactsLoading && id !== 'insights'
+                  const locked = (artifactsLoading && id !== 'insights') || (id === 'slides' && !slides.length)
                   return (
                     <motion.button
                       key={id}
@@ -838,8 +583,13 @@ export default function App() {
             <div className="flex-1 overflow-hidden">
               {activeTab === 'insights' && (
                 <div className="h-full overflow-y-auto p-4 animate-fade-in">
-                  <InsightPanel insights={insights} loading={!insights} siteTheme={themeEnabled ? siteTheme : null} />
+                  <InsightPanel insights={insights} loading={!insights} siteTheme={themeEnabled ? siteTheme : null} onSlidesOpen={() => setActiveTab('slides')} />
                   <Footer onPrivacyClick={() => setShowPrivacy(true)} onCookiesClick={() => setShowCookies(true)} />
+                </div>
+              )}
+              {activeTab === 'slides' && slides.length > 0 && (
+                <div className="h-full animate-fade-in">
+                  <SlidesPage slides={slides} sessionTitle={sessionTitle} onFullscreen={() => setShowSlidesFullscreen(true)} />
                 </div>
               )}
               {activeTab === 'media' && (
@@ -863,6 +613,7 @@ export default function App() {
             <LandingView
               exampleQueries={exampleQueries}
               onQuerySelect={(q) => setUrl(q)}
+              logo={logo}
             />
             <Footer onPrivacyClick={() => setShowPrivacy(true)} onCookiesClick={() => setShowCookies(true)} />
           </div>
@@ -871,6 +622,17 @@ export default function App() {
 
       {/* Floating Q&A chatbot — visible when a session is active */}
       {sessionReady && <QAChatbot sessionId={sessionId} sessionReady={sessionReady} />}
+
+      {/* Fullscreen presentation — always mounted at root so it survives tab switches */}
+      <AnimatePresence>
+        {showSlidesFullscreen && slides.length > 0 && (
+          <PresentationModal
+            slides={slides}
+            meta={{ title: sessionTitle }}
+            onClose={() => setShowSlidesFullscreen(false)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   )
 }
