@@ -1,0 +1,194 @@
+{
+  "eval_date": "2026-05-05T09:18:18.296933",
+  "site": "www.bbc.co.uk",
+  "session_id": "2386354aecfc0764",
+  "top_k": 5,
+  "stopwords_source": "NLTK (184 words, negations retained)",
+  "thresholds": {
+    "hit@1_min": 0.8,
+    "hit@5_min": 0.95,
+    "mrr@5_min": 0.75,
+    "hallucination_max": 0.25,
+    "ctx_coverage_min": 0.65,
+    "kw_overlap_min": 0.75,
+    "answer_words_max": 150,
+    "ctx_tokens_max": 3000,
+    "rejection_rate_min": 0.9
+  },
+  "question_counts": {
+    "answerable": 5,
+    "unanswerable": 2
+  },
+  "retrieval_summary": {
+    "hit@1": 0.8,
+    "hit@3": 1.0,
+    "hit@5": 1.0,
+    "mrr@5": 0.9,
+    "precision@5": 0.8,
+    "mean_score": 0.84890263324
+  },
+  "faithfulness_summary": {
+    "kw_overlap": 0.7999999999999999,
+    "ctx_coverage": 0.7917027725851254,
+    "hallucination_raw": 0.20829722741487444,
+    "hallucination_cw": 0.19747619047619047,
+    "avg_words": 66.8,
+    "avg_ctx_tokens": 937.4,
+    "avg_latency_s": 6.219243001937866
+  },
+  "rejection_summary": {
+    "rejection_rate": 1.0,
+    "n_unanswerable": 2,
+    "n_abstained": 2
+  },
+  "answerable_questions": [
+    {
+      "idx": 1,
+      "question": "What is the BBC?",
+      "ground_truth": "The BBC is the United Kingdom public service broadcaster.",
+      "keywords": [
+        "bbc",
+        "public service",
+        "broadcaster",
+        "uk"
+      ],
+      "hit@1": 1,
+      "hit@3": 1,
+      "hit@5": 1,
+      "mrr@5": 1.0,
+      "precision@5": 1.0,
+      "mean_score": 0.8476691846000002,
+      "answer": "**BBC Overview**\n\n- The **BBC** is the world’s leading **public service broadcaster**, offering impartial and independent programmes that inform, educate and entertain millions in the UK and worldwide.  \n- It operates a portfolio of television services, ten UK‑wide radio networks, regional and local stations, and extensive digital platforms such as iPlayer and BBC Sounds.  \n- The corporation is principally funded through the **UK licence fee** paid by households, with additional commercial revenue supporting new programming.  \n- Governance is provided by the **BBC Board**, the **Executive Committee**, and other senior bodies, while regulatory oversight is from **Ofcom**.",
+      "kw_overlap": 1.0,
+      "ctx_coverage": 0.7678571428571429,
+      "hallucination_raw": 0.2321428571428571,
+      "hallucination_cw": 0.26,
+      "verbosity_score": 0.0,
+      "answer_words": 96,
+      "ctx_tokens": 761,
+      "latency_s": 5.881447076797485
+    },
+    {
+      "idx": 2,
+      "question": "How is the BBC funded?",
+      "ground_truth": "The BBC is primarily funded by the television licence fee paid by UK households.",
+      "keywords": [
+        "funded",
+        "licence fee",
+        "tv licence"
+      ],
+      "hit@1": 1,
+      "hit@3": 1,
+      "hit@5": 1,
+      "mrr@5": 1.0,
+      "precision@5": 0.6,
+      "mean_score": 0.8525604483999999,
+      "answer": "**Funding sources**\n\n- **Licence fee** – the primary source, used to fund TV, radio, online programmes, the BBC World Service, the Welsh language channel S4C, Local Democracy Reporters, and to keep UK services free of advertisements.  \n- **Commercial subsidiaries** – generate additional income (e.g., BBC Studios earns advertising and distribution revenue from the international news channel and digital platforms, which is returned to the BBC).",
+      "kw_overlap": 0.3333333333333333,
+      "ctx_coverage": 0.717948717948718,
+      "hallucination_raw": 0.28205128205128205,
+      "hallucination_cw": 0.25,
+      "verbosity_score": 0.0,
+      "answer_words": 65,
+      "ctx_tokens": 647,
+      "latency_s": 6.192020416259766
+    },
+    {
+      "idx": 3,
+      "question": "What is the mission of the BBC?",
+      "ground_truth": "The BBC aims to inform, educate and entertain audiences.",
+      "keywords": [
+        "inform",
+        "educate",
+        "entertain"
+      ],
+      "hit@1": 0,
+      "hit@3": 1,
+      "hit@5": 1,
+      "mrr@5": 0.5,
+      "precision@5": 0.6,
+      "mean_score": 0.8582653284000001,
+      "answer": "**Mission**  \n“To act in the public interest, serving all audiences through the provision of impartial, high‑quality and distinctive output and services which inform, educate and entertain.”【Source 2】",
+      "kw_overlap": 1.0,
+      "ctx_coverage": 0.9411764705882353,
+      "hallucination_raw": 0.05882352941176472,
+      "hallucination_cw": 0.06666666666666667,
+      "verbosity_score": 0.0,
+      "answer_words": 27,
+      "ctx_tokens": 1721,
+      "latency_s": 4.58734393119812
+    },
+    {
+      "idx": 4,
+      "question": "Is the BBC independent from the government?",
+      "ground_truth": "Yes, the BBC operates independently but is publicly funded and governed by a charter.",
+      "keywords": [
+        "independent",
+        "government",
+        "charter"
+      ],
+      "hit@1": 1,
+      "hit@3": 1,
+      "hit@5": 1,
+      "mrr@5": 1.0,
+      "precision@5": 0.8,
+      "mean_score": 0.833278036,
+      "answer": "**Yes.** The BBC’s funding from the licence fee lets its UK services stay **independent of shareholder and political interest**【Source 4】. Governance arrangements include the **Comptroller and Auditor General**, who is independent of Government and audits the BBC’s accounts【Source 1】. Official statements also describe the BBC as “a strong BBC, **independent of government**”【Source 5】.",
+      "kw_overlap": 0.6666666666666666,
+      "ctx_coverage": 0.6666666666666666,
+      "hallucination_raw": 0.33333333333333337,
+      "hallucination_cw": 0.2857142857142857,
+      "verbosity_score": 0.0,
+      "answer_words": 53,
+      "ctx_tokens": 935,
+      "latency_s": 5.1054112911224365
+    },
+    {
+      "idx": 5,
+      "question": "What services does the BBC provide?",
+      "ground_truth": "The BBC provides television, radio, online content, and news services.",
+      "keywords": [
+        "tv",
+        "radio",
+        "online",
+        "news",
+        "services"
+      ],
+      "hit@1": 1,
+      "hit@3": 1,
+      "hit@5": 1,
+      "mrr@5": 1.0,
+      "precision@5": 1.0,
+      "mean_score": 0.8527401687999999,
+      "answer": "**BBC Services**\n\n- **TV, radio and online programmes** across the UK (Source 1)  \n- **BBC World Service** – international broadcasting in 42–43 languages on radio, TV and digital platforms (Sources 1, 2, 5)  \n- **Welsh Language TV channel S4C** (Source 1)  \n- **Local Democracy Reporters** (Source 1)  \n- **BBC News channel** – 24‑hour English news TV for global audiences (Source 4)  \n- **BBC.com and the BBC app** – digital news covering Business, Innovation, Culture, Travel, Earth, News and Sport (Source 4)  \n- **Global news services** accessible on radio, television and online (Source 3)",
+      "kw_overlap": 1.0,
+      "ctx_coverage": 0.8648648648648649,
+      "hallucination_raw": 0.1351351351351351,
+      "hallucination_cw": 0.125,
+      "verbosity_score": 0.0,
+      "answer_words": 93,
+      "ctx_tokens": 623,
+      "latency_s": 9.329992294311523
+    }
+  ],
+  "unanswerable_questions": [
+    {
+      "idx": 1,
+      "label": "U01",
+      "question": "What is the BBC pension fund total asset value?",
+      "answer": "Sorry, I couldn't find this information. Please try another question.",
+      "abstained": true,
+      "answer_words": 10,
+      "latency_s": 2.5009403228759766
+    },
+    {
+      "idx": 2,
+      "label": "U02",
+      "question": "How many BBC journalists were made redundant in 2023?",
+      "answer": "Sorry, I couldn't find this information. Please try another question.",
+      "abstained": true,
+      "answer_words": 10,
+      "latency_s": 3.6712076663970947
+    }
+  ]
+}
