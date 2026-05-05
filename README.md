@@ -50,6 +50,11 @@
 
 ---
 
+## Why this project?
+
+Most "chat with your website" demos ship without measurement — there's no way to tell if the answers are actually grounded in the source. This project includes a quantitative RAG evaluation harness that separates retrieval quality, faithfulness, and refusal behavior, with documented before/after improvements and honest reporting of the two metrics that still don't pass threshold. Built to demonstrate production AI engineering, not just LLM wiring.
+
+
 ## Features
 
 ### Core Capabilities
