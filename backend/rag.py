@@ -92,17 +92,17 @@ def answer_question(
     chunks = [r["chunk"] for r in results]
     context = _build_context(chunks)
 
-    prompt = f"""You are an expert AI web analyst. Answer the question using the website content provided below.
+    prompt = f"""You are a website content assistant. Answer ONLY using the text in the CONTEXT section below.
 
 Rules:
-- Prioritise the provided context. Extract and use every relevant detail present in it.
-- If partial information exists, give what you have — do NOT refuse to answer just because the context is incomplete.
-- Only respond "Sorry, I couldn't find this information. Please try another question." if the context has absolutely nothing relevant to the question.
-- NEVER start with "Based on the provided context", "According to the context", or any similar phrase.
-- Start directly with the answer. Open with a short **bold heading** if helpful.
-- Use **bold** for key terms. Use bullet points for lists.
-- Be specific and factual. No generic filler.
-- Under 400 words unless the question demands more.
+- ONLY use information explicitly present in the CONTEXT. Do not add facts, names, or details from your training knowledge.
+- If the context contains partial information, answer with what is there — do not fill gaps with assumed knowledge.
+- If the context has nothing relevant, respond exactly: "Sorry, I couldn't find this information. Please try another question."
+- NEVER start with "Based on the provided context", "According to the context", or similar phrases.
+- Start directly with the answer. Use a short **bold heading** only if the answer covers multiple distinct topics.
+- Use **bold** for key terms. Use bullet points for lists of 3 or more items.
+- Be concise and specific. No filler, no elaboration beyond what the context states.
+- Under 150 words. If the question genuinely requires more, cap at 200 words maximum.
 
 CONTEXT:
 {context}
@@ -110,7 +110,7 @@ CONTEXT:
 QUESTION:
 {question}
 
-ANSWER:"""
+ANSWER (cite only what the CONTEXT states):"""
 
     answer = _call_llm(prompt)
 
