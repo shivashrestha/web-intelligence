@@ -2,13 +2,36 @@
 
 > Turn any public URL into a queryable knowledge base with source-backed answers, structured business insights, security analysis, and media extraction — powered by a production-grade RAG pipeline.
 
+**[Live Demo →](https://web-intelligence-red.vercel.app)**
+
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi&logoColor=white)
 ![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)
 ![Vite](https://img.shields.io/badge/Vite-5-646CFF?logo=vite&logoColor=white)
 ![TailwindCSS](https://img.shields.io/badge/Tailwind-3-06B6D4?logo=tailwindcss&logoColor=white)
 ![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white)
-![FAISS](https://img.shields.io/badge/Vector%20DB-FAISS-lightgrey)
+![Pinecone](https://img.shields.io/badge/Vector%20DB-Pinecone-0C1E3C?logo=pinecone&logoColor=white)
 ![LLM](https://img.shields.io/badge/LLM-Gemini%20%7C%20Ollama-orange)
+
+**RAG Evaluation Results** (aboutamazon.com · post-fix · top-k=5):
+
+![Hit@1](https://img.shields.io/badge/Hit%401-80%25-4C72B0)
+![Hit@5](https://img.shields.io/badge/Hit%405-100%25-55A868)
+![MRR@5](https://img.shields.io/badge/MRR%405-0.883-8172B2)
+![Hallucination](https://img.shields.io/badge/Hallucination%20CW-28%25-C44E52)
+![CtxCoverage](https://img.shields.io/badge/Ctx%20Coverage-73%25-55A868)
+![Rejection](https://img.shields.io/badge/Rejection%20Rate-100%25-55A868)
+
+---
+
+### Screenshots
+
+| Landing | Q&A Chat | Insights |
+|---|---|---|
+| ![Landing](screenshot/landing-page.png) | ![QA Chat](screenshot/qachat.png) | ![Insights](screenshot/presentation-site.png) |
+
+| Sources | Media | Score |
+|---|---|---|
+| ![Sources](screenshot/sources.png) | ![Media](screenshot/media-file.png) | ![Score](screenshot/score.png) |
 
 ---
 
@@ -85,8 +108,8 @@
         │               │
    ┌────▼────┐    ┌─────▼──────┐
    │Processor│    │  Embeddings │
-   │ chunker │    │ MiniLM-L6  │
-   └─────────┘    │  + FAISS   │
+   │ chunker │    │ e5-large   │
+   └─────────┘    │  Pinecone  │
                   └────────────┘
 ```
 
@@ -94,7 +117,7 @@
 1. Frontend sends URL(s) → `POST /api/process`
 2. Scraper crawls pages, extracts structured sections and media
 3. Processor chunks text with metadata; thin pages reformatted by LLM
-4. MiniLM-L6-v2 encodes chunks; FAISS indexes vectors under `session_id`
+4. Pinecone Inference encodes chunks with `multilingual-e5-large`; vectors upserted under session namespace
 5. Q&A: question encoded → top-k chunks retrieved → LLM answers strictly from context
 6. Insights: 9 semantic queries retrieve diverse chunks → LLM generates structured cards
 
@@ -109,8 +132,8 @@
 | API framework | FastAPI | 0.115 | REST endpoints, CORS, validation |
 | ASGI server | Uvicorn | 0.30 | HTTP server |
 | Scraping | requests + BeautifulSoup4 | latest | Page fetch, HTML parsing |
-| Embeddings | sentence-transformers | latest | MiniLM-L6-v2 text encoder |
-| Vector DB | FAISS + Pinecone SDK | ≥5.0 | Local vector index |
+| Embeddings | Pinecone Inference | — | `multilingual-e5-large` (1024-dim) serverless encoder |
+| Vector DB | Pinecone | ≥5.0 | Serverless vector index, namespaced per session |
 | LLM (local) | Ollama | ≥0.4 | Gemma3 or any Ollama model |
 | LLM (cloud) | google-generativeai | ≥0.8 | Gemini 2.0 Flash |
 | Database | psycopg2-binary | ≥2.9 | Supabase PostgreSQL (collab form) |
@@ -138,7 +161,7 @@ web-intelligence/
 │   ├── main.py              # FastAPI app, all route handlers
 │   ├── scraper.py           # URL fetching, HTML parsing, media/security extraction
 │   ├── processor.py         # Text chunking, source map builder
-│   ├── embeddings.py        # EmbeddingStore: MiniLM encoding, FAISS index CRUD
+│   ├── embeddings.py        # EmbeddingStore: Pinecone upsert/query, multilingual-e5-large
 │   ├── rag.py               # RAG answer_question(), build_insights(), prompt templates
 │   ├── rag_eval_single.ipynb# Single-site RAG evaluation notebook (see §RAG Evaluation)
 │   ├── requirements.txt
@@ -174,7 +197,7 @@ web-intelligence/
 │           └── CollaborateModal.jsx  # Collaboration/contact form modal
 │
 ├── data/
-│   ├── faiss_index/         # FAISS index files (auto-created)
+│   ├── faiss_index/         # Local session metadata cache (vectors live in Pinecone cloud)
 │   ├── sessions/            # Session JSON files (auto-created)
 │   ├── cached_pages/        # HTML cache (auto-created)
 │   ├── eval_retrieval_chart.png
@@ -203,7 +226,7 @@ All endpoints except `/health` require the `X-Browser-Token` header (UUID v4 for
 
 | Method | Path | Description |
 |---|---|---|
-| `POST` | `/api/process` | Crawl URLs, build FAISS index, create session |
+| `POST` | `/api/process` | Crawl URLs, build Pinecone index, create session |
 | `GET` | `/api/sessions` | List all sessions owned by this browser token |
 | `GET` | `/api/session/{id}` | Fetch full session payload |
 | `DELETE` | `/api/sessions/{id}` | Delete a single session and its vector index |
@@ -285,18 +308,23 @@ All endpoints except `/health` require the `X-Browser-Token` header (UUID v4 for
 LLM_PROVIDER=gemini
 
 # Ollama (when LLM_PROVIDER=ollama)
-OLLAMA_URL=../api/generate
+OLLAMA_URL=http://localhost:11434
+OLLAMA_API_KEY=your_ollama_key
 OLLAMA_MODEL=gemma3:latest
 
 # Gemini (when LLM_PROVIDER=gemini)
-GEMINI_API_KEY=your_key_here
+GEMINI_API_KEY=your_gemini_key
 GEMINI_MODEL=gemini-2.0-flash
 
-# CORS — frontend origin
-FRONTEND_ORIGIN=web-intelligence.app
+# Pinecone — vector database (required)
+PINECONE_API=your_pinecone_api_key
+PINECONE_INDEX=web-intelligence
 
-# Supabase — for collaboration form storage
-SUPABASE_CONNECTION_STRING=''
+# CORS — frontend origin
+FRONTEND_ORIGIN=http://localhost:5173
+
+# Supabase — collaboration form storage (optional)
+SUPABASE_CONNECTION_STRING=postgresql://user:pass@host:5432/db
 ```
 
 ### Frontend — `frontend/.env`
@@ -311,10 +339,69 @@ VITE_API_BASE_URL=api.webintelligence.app
 
 ### Prerequisites
 
-- Python 3.11+
-- Node.js 18+
-- One of: Ollama running locally or cloud, or a Gemini API key
-- (Optional) Supabase project for the collaboration form
+| Requirement | Notes |
+|---|---|
+| Python 3.11+ | Backend runtime |
+| Node.js 18+ | Frontend build |
+| Pinecone account | Free Starter tier sufficient — create index `web-intelligence` (1024 dims, cosine) |
+| LLM — one of: | Gemini API key (cloud, recommended) **or** Ollama running locally |
+| Supabase project | Optional — only required for the collaboration form |
+
+### 1. Clone & backend setup
+
+```bash
+git clone https://github.com/your-username/web-intelligence.git
+cd web-intelligence/backend
+
+python -m venv .venv
+# Windows
+.venv\Scripts\activate
+# macOS / Linux
+source .venv/bin/activate
+
+pip install -r requirements.txt
+cp .env.example .env
+```
+
+Edit `backend/.env` — set `PINECONE_API`, `PINECONE_INDEX`, and your LLM credentials (`GEMINI_API_KEY` or `OLLAMA_*`).
+
+NLTK stopwords download automatically on first notebook run. To pre-download:
+
+```python
+python -c "import nltk; nltk.download('stopwords')"
+```
+
+### 2. Frontend setup
+
+```bash
+cd ../frontend
+npm install
+cp .env.example .env
+# Set VITE_API_BASE_URL=http://localhost:8000 for local dev
+```
+
+### 3. Pinecone index
+
+Log in to [app.pinecone.io](https://app.pinecone.io) → **Create Index**:
+
+| Setting | Value |
+|---|---|
+| Name | `web-intelligence` (or match `PINECONE_INDEX` in `.env`) |
+| Dimensions | `1024` |
+| Metric | `cosine` |
+| Type | Serverless |
+
+### 4. Run
+
+```bash
+# Terminal 1 — backend
+cd backend && uvicorn main:app --reload --port 8000
+
+# Terminal 2 — frontend
+cd frontend && npm run dev
+```
+
+App available at `http://localhost:5173`.
 
 ---
 
@@ -494,7 +581,7 @@ Histograms of similarity score, keyword overlap, and context coverage across all
 
 | Path | Contents | Auto-created |
 |---|---|---|
-| `data/faiss_index/` | FAISS vector index files per session | Yes |
+| `data/faiss_index/` | Local session metadata cache (actual vectors stored in Pinecone cloud) | Yes |
 | `data/sessions/` | Session JSON (URLs, pages, chunks, theme, images) | Yes |
 | `data/cached_pages/` | Raw HTML cache to avoid re-fetching | Yes |
 | `data/eval_single_<site>_<date>.json` | Eval run output — retrieval + faithfulness + rejection summaries | On eval run |
@@ -522,15 +609,10 @@ Histograms of similarity score, keyword overlap, and context coverage across all
 
 ## Roadmap
 
-- [ ] Streaming responses (SSE or WebSocket)
-- [ ] Re-ranking layer (cross-encoder) to improve Hit@1
-- [ ] LLM-as-judge faithfulness scoring (RAGAS-compatible)
-- [ ] NDCG@k metric added to retrieval eval
-- [ ] JavaScript-rendered page support (Playwright integration)
-- [ ] User authentication and persistent cloud sessions
-- [ ] Background job queue for large crawls
-- [ ] Deployment scripts: Render/Railway (backend) + Vercel/Netlify (frontend)
-- [ ] Eval notebook support for multi-site batch runs
+- [ ] Cross-encoder re-ranking — promote semantically correct chunk to rank 1 (target: Hit@1 ≥ 90%)
+- [ ] LLM-as-judge faithfulness — RAGAS-style claim decomposition to replace token-overlap proxy
+- [ ] Streaming responses — SSE for real-time answer rendering
+- [ ] JavaScript-rendered page support — Playwright integration for SPA sites
 
 ---
 
@@ -617,7 +699,7 @@ Two checks still fail post-fix:
 
 #### Retrieval Quality
 
-**Cross-encoder re-ranking** — the current pipeline ranks by bi-encoder cosine similarity (MiniLM-L6-v2). This is fast but coarse. A cross-encoder re-ranker (e.g. `ms-marco-MiniLM-L-6-v2`) scores each (query, chunk) pair jointly and can promote the semantically correct chunk to rank 1 even when the bi-encoder places an adjacent topic first. Expected improvement: Hit@1 80% → 90%+.
+**Cross-encoder re-ranking** — the current pipeline ranks by Pinecone's `multilingual-e5-large` bi-encoder cosine similarity. This is fast but coarse. A cross-encoder re-ranker (e.g. `ms-marco-MiniLM-L-6-v2`) scores each (query, chunk) pair jointly and can promote the semantically correct chunk to rank 1 even when the bi-encoder places an adjacent topic first. Expected improvement: Hit@1 80% → 90%+.
 
 **NDCG@k metric** — the current eval treats relevance as binary (keyword match = 1, else 0). NDCG allows graded relevance (exact answer = 2, related = 1, off-topic = 0) and penalises correct results appearing at rank 3 more than rank 2. This gives a more accurate picture of ranking quality than Hit@k alone.
 
