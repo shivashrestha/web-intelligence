@@ -303,7 +303,7 @@ function ScoreBreakdownModal({ breakdown, totalScore, onClose }) {
 
 // ── Presentation slide logic ──────────────────────────────────────────────
 
-function buildSlides(structured, meta) {
+export function buildSlides(structured, meta) {
   if (!structured?.length) return []
   const get = (title) => {
     const block = structured.find((b) => b.title === title)
@@ -337,7 +337,7 @@ function buildSlides(structured, meta) {
   ].filter(Boolean)
 }
 
-function downloadSlidesAsPDF(slides, meta) {
+export function downloadSlidesAsPDF(slides, meta) {
   const esc = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
   const ac = (hex, op) => {
     try {
@@ -361,13 +361,13 @@ function downloadSlidesAsPDF(slides, meta) {
   if (win) win.addEventListener('load', () => { setTimeout(() => { win.print(); setTimeout(() => URL.revokeObjectURL(url), 3000) }, 700) })
 }
 
-const slideVariants = {
+export const slideVariants = {
   enter:  (dir) => ({ x: dir > 0 ? '55%' : '-55%', opacity: 0, scale: 0.97 }),
   center: { x: 0, opacity: 1, scale: 1 },
   exit:   (dir) => ({ x: dir > 0 ? '-55%' : '55%', opacity: 0, scale: 0.97 }),
 }
 
-function SlideContent({ slide }) {
+export function SlideContent({ slide }) {
   const color = slide.color
   if (slide.type === 'title') {
     return (
@@ -414,7 +414,7 @@ function SlideContent({ slide }) {
   )
 }
 
-function PresentationModal({ slides, meta, onClose }) {
+export function PresentationModal({ slides, meta, onClose }) {
   const [current, setCurrent] = useState(0)
   const [dir, setDir]         = useState(1)
   const go   = (idx) => { setDir(idx > current ? 1 : -1); setCurrent(idx) }
@@ -492,13 +492,11 @@ function PresentationModal({ slides, meta, onClose }) {
 
 // ── Analyst report ────────────────────────────────────────────────────────────
 
-function AnalystReport({ structured, accent, security }) {
+function AnalystReport({ structured, accent, security, onSlidesOpen }) {
   const { pros, cons, score, verdict, signals, breakdown } = computeReport(structured, security)
   const scoreColor = score >= 75 ? '#10FFA8' : score >= 52 ? '#00D4FF' : score >= 36 ? '#F59E0B' : '#FF4D6D'
   const balance = score / 100
-  const [showBreakdown, setShowBreakdown]       = useState(false)
-  const [showPresentation, setShowPresentation] = useState(false)
-  const slides = buildSlides(structured, null)
+  const [showBreakdown, setShowBreakdown] = useState(false)
 
   return (
     <>
@@ -528,7 +526,7 @@ function AnalystReport({ structured, accent, security }) {
               {score >= 78 ? 'Strong' : score >= 60 ? 'Solid' : score >= 42 ? 'Mixed' : 'At Risk'}
             </span>
             <button
-              onClick={() => setShowPresentation(true)}
+              onClick={() => onSlidesOpen?.()}
               title="View as Presentation Slides"
               className="ml-auto flex items-center gap-1 h-6 px-2 rounded-lg text-[10px] font-semibold border transition-all hover:scale-105 active:scale-95"
               style={{
@@ -620,15 +618,6 @@ function AnalystReport({ structured, accent, security }) {
       )}
     </AnimatePresence>
 
-    <AnimatePresence>
-      {showPresentation && slides.length > 0 && (
-        <PresentationModal
-          slides={slides}
-          meta={null}
-          onClose={() => setShowPresentation(false)}
-        />
-      )}
-    </AnimatePresence>
     </>
   )
 }
@@ -859,7 +848,7 @@ function HeroBanner({ siteTheme }) {
 }
 
 // ── Main export ───────────────────────────────────────────────────────────
-export default function InsightPanel({ insights, loading, siteTheme }) {
+export default function InsightPanel({ insights, loading, siteTheme, onSlidesOpen }) {
   const accent = siteTheme?.accent
   const security = insights?.security || null
   const [selected, setSelected] = useState(null)
@@ -916,7 +905,7 @@ export default function InsightPanel({ insights, loading, siteTheme }) {
     <div className="space-y-0">
       {siteTheme && <HeroBanner siteTheme={siteTheme} />}
 
-      <AnalystReport structured={insights.structured} accent={accent} security={security} />
+      <AnalystReport structured={insights.structured} accent={accent} security={security} onSlidesOpen={onSlidesOpen} />
 
       <div className="columns-1 md:columns-2 gap-3">
         {[...insights.structured]
