@@ -16,3 +16,4 @@ data/sessions/*
 README_local.md
 .ipynb_checkpoints/
 blog
+docker-compose.prod.yml
