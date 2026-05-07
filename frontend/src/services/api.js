@@ -1,6 +1,10 @@
 import { getBrowserToken } from './storage.js'
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
+const RAW_API_BASE = (import.meta.env.VITE_API_BASE_URL || '').trim()
+const IS_HTTPS_PAGE =
+  typeof window !== 'undefined' && window.location.protocol === 'https:'
+const API_BASE =
+  IS_HTTPS_PAGE && RAW_API_BASE.startsWith('http://') ? '' : RAW_API_BASE
 function _extractDetail(detail) {
   if (!detail) return null
   if (typeof detail === 'string') return detail
