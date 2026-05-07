@@ -1,8 +1,9 @@
+name: webin
 version: "3.9"
 
 services:
-  backend:
-    container_name: web-intelligence-backend
+  webin-backend:
+    container_name: webin-backend
     build:
       context: .
       dockerfile: backend/Dockerfile
@@ -12,7 +13,7 @@ services:
       PORT: "8000"
       FRONTEND_ORIGIN: ""
     ports:
-      - "8000:8000"
+      - "18000:8000"
     volumes:
       - ./data:/app/data
     restart: unless-stopped
