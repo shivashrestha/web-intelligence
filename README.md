@@ -1,4 +1,4 @@
-# Web Intelligence — AI Website Analyst
+# Web Intelligence: AI Website Analyst
 
 > Turn any public URL into a queryable knowledge base with source-backed answers, structured business insights, security analysis, and media extraction — powered by a production-grade RAG pipeline.
 
