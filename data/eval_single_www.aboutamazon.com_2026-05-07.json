@@ -1,0 +1,208 @@
+{
+  "eval_date": "2026-05-07T19:15:40.253203",
+  "site": "www.aboutamazon.com",
+  "session_id": "681da379025d9e67",
+  "top_k": 5,
+  "stopwords_source": "NLTK (184 words, negations retained)",
+  "thresholds": {
+    "hit@1_min": 0.8,
+    "hit@5_min": 0.95,
+    "mrr@5_min": 0.75,
+    "hallucination_max": 0.25,
+    "ctx_coverage_min": 0.65,
+    "kw_overlap_min": 0.75,
+    "answer_words_max": 150,
+    "ctx_tokens_max": 3000,
+    "rejection_rate_min": 0.9
+  },
+  "question_counts": {
+    "answerable": 5,
+    "unanswerable": 3
+  },
+  "retrieval_summary": {
+    "hit@1": 0.6,
+    "hit@3": 1.0,
+    "hit@5": 1.0,
+    "mrr@5": 0.7666666666666666,
+    "precision@5": 0.6399999999999999,
+    "mean_score": 0.8342078909199999
+  },
+  "faithfulness_summary": {
+    "kw_overlap": 0.5700000000000001,
+    "ctx_coverage": 0.7634485839363887,
+    "hallucination_raw": 0.23655141606361116,
+    "hallucination_cw": 0.24947122554681006,
+    "avg_words": 87.0,
+    "avg_ctx_tokens": 692.6,
+    "avg_latency_s": 4.949672698974609
+  },
+  "rejection_summary": {
+    "rejection_rate": 1.0,
+    "n_unanswerable": 3,
+    "n_abstained": 3
+  },
+  "answerable_questions": [
+    {
+      "idx": 1,
+      "question": "What does Amazon do as a company?",
+      "ground_truth": "Amazon builds and operates businesses focused on e-commerce, cloud computing, devices, and digital services.",
+      "keywords": [
+        "ecommerce",
+        "cloud",
+        "devices",
+        "services",
+        "businesses"
+      ],
+      "hit@1": 0,
+      "hit@3": 1,
+      "hit@5": 1,
+      "mrr@5": 0.3333333333333333,
+      "precision@5": 0.2,
+      "mean_score": 0.8411319612,
+      "answer": "**Amazon’s activities**\n\n- **E‑commerce services** – 1‑Click shopping, personalized recommendations, Prime, Fulfillment by Amazon.  \n- **Cloud computing** – Amazon Web Services (AWS).  \n- **Devices & media** – Kindle, Kindle Direct Publishing, Fire tablets, Fire TV, Amazon Echo, Alexa.  \n- **Retail innovations** – Just Walk Out technology.  \n- **Entertainment** – Amazon Studios.  \n- **Workforce initiatives** – Career Choice, raising employee pay.  \n- **Sustainability** – The Climate Pledge, improving packaging, sustainable operations.  \n- **Community impact** – Creating jobs, supporting local communities, delivering relief items, disaster response.  \n- **Delivery & logistics** – Operations and award‑winning customer service teams focused on fast, reliable delivery.",
+      "kw_overlap": 0.6,
+      "ctx_coverage": 0.7384615384615385,
+      "hallucination_raw": 0.2615384615384615,
+      "hallucination_cw": 0.2807017543859649,
+      "verbosity_score": 0.0,
+      "answer_words": 100,
+      "ctx_tokens": 571,
+      "latency_s": 5.658963441848755
+    },
+    {
+      "idx": 2,
+      "question": "What is Amazon Web Services (AWS)?",
+      "ground_truth": "AWS is Amazon cloud computing platform providing infrastructure and services to businesses.",
+      "keywords": [
+        "aws",
+        "cloud",
+        "infrastructure",
+        "services"
+      ],
+      "hit@1": 1,
+      "hit@3": 1,
+      "hit@5": 1,
+      "mrr@5": 1.0,
+      "precision@5": 1.0,
+      "mean_score": 0.8540879248,
+      "answer": "**Amazon Web Services (AWS)**  \n- The **world’s most comprehensive and broadly adopted cloud**.  \n- Guided by **customer obsession**, a **rapid pace of innovation**, **commitment to operational excellence**, and **long‑term thinking**.  \n- Continuously enhances its **infrastructure for increased security and resilience**, delivering industry‑first capabilities and breakthrough technologies.  \n- Provides the **greatest choice of innovative cloud and AI capabilities** for a wide range of workloads.",
+      "kw_overlap": 1.0,
+      "ctx_coverage": 0.8780487804878049,
+      "hallucination_raw": 0.12195121951219512,
+      "hallucination_cw": 0.11764705882352941,
+      "verbosity_score": 0.0,
+      "answer_words": 63,
+      "ctx_tokens": 1108,
+      "latency_s": 4.573120832443237
+    },
+    {
+      "idx": 3,
+      "question": "What kinds of products and services does Amazon offer?",
+      "ground_truth": "Amazon offers retail products, digital content, cloud services, smart devices, and logistics solutions.",
+      "keywords": [
+        "retail",
+        "digital",
+        "cloud",
+        "devices",
+        "logistics"
+      ],
+      "hit@1": 0,
+      "hit@3": 1,
+      "hit@5": 1,
+      "mrr@5": 0.5,
+      "precision@5": 0.6,
+      "mean_score": 0.8368714368000001,
+      "answer": "**Products and Services**\n\n- **Entertainment** – Prime Video, Amazon MGM Studios, MGM+, Amazon Music, Audible, Wondery, Amazon Games, Twitch; offering movies, series, live events, sports, music, books, and podcasts.  \n- **Retail & Grocery** – Hundreds of millions of items across 35+ categories (home, apparel, beauty, grocery, everyday essentials); Prime members get free same‑day/one‑day delivery, free grocery delivery via Amazon Fresh, and access to Whole Foods Market stores.  \n- **Supply‑Chain Services** – Amazon Supply Chain Services (ASCS) provides freight, distribution, fulfillment, and parcel‑shipping capabilities for businesses of all sizes.  \n- **Health Care** – Amazon Health Services delivers primary care, virtual care, pharmacy, and related health‑care options.  \n- **Cloud & AI** – Amazon Web Services (AWS) and Artificial Intelligence (AI) offerings.  \n\nThese encompass the main product and service categories highlighted in the provided context.",
+      "kw_overlap": 0.4,
+      "ctx_coverage": 0.8,
+      "hallucination_raw": 0.19999999999999996,
+      "hallucination_cw": 0.22727272727272727,
+      "verbosity_score": 0.0,
+      "answer_words": 132,
+      "ctx_tokens": 862,
+      "latency_s": 6.380568265914917
+    },
+    {
+      "idx": 4,
+      "question": "What is Amazon approach to innovation?",
+      "ground_truth": "Amazon focuses on customer obsession, long-term thinking, and continuous innovation across its businesses.",
+      "keywords": [
+        "innovation",
+        "customer",
+        "long-term",
+        "thinking"
+      ],
+      "hit@1": 1,
+      "hit@3": 1,
+      "hit@5": 1,
+      "mrr@5": 1.0,
+      "precision@5": 0.8,
+      "mean_score": 0.8286768554,
+      "answer": "**Amazon’s Innovation Approach**\n\n- A **culture of innovation and scale** powers world‑changing ideas while providing a safe, inclusive environment for employees.  \n- One of its guiding principles is **passion for invention**, emphasizing invention over competitor focus.  \n- Innovation is driven by **problem‑solving and iteration**, as highlighted in the “Learn and Be Curious” podcast that showcases employee work on products like Amazon Pharmacy and Same‑Day Delivery.",
+      "kw_overlap": 0.25,
+      "ctx_coverage": 0.7435897435897436,
+      "hallucination_raw": 0.2564102564102564,
+      "hallucination_cw": 0.24242424242424243,
+      "verbosity_score": 0.0,
+      "answer_words": 65,
+      "ctx_tokens": 322,
+      "latency_s": 3.7879509925842285
+    },
+    {
+      "idx": 5,
+      "question": "What industries does Amazon operate in?",
+      "ground_truth": "Amazon operates in retail, technology, cloud computing, entertainment, and logistics industries.",
+      "keywords": [
+        "retail",
+        "technology",
+        "cloud",
+        "entertainment",
+        "logistics"
+      ],
+      "hit@1": 1,
+      "hit@3": 1,
+      "hit@5": 1,
+      "mrr@5": 1.0,
+      "precision@5": 0.6,
+      "mean_score": 0.8102712764,
+      "answer": "**Industries Amazon Operates In**\n\n- **Retail / Store Operations** – Amazon Store Operations and shopping sites. [Source 1]  \n- **Devices & Consumer Electronics** – Devices and Services such as Kindle, Fire tablets, Echo. [Source 1]  \n- **Cloud Computing** – Amazon Web Services (AWS). [Source 1]  \n- **Entertainment & Media** – Prime Video, Amazon MGM Studios, MGM+, Amazon Music, Audible, Twitch, etc. [Source 1][Source 3]  \n- **Artificial Intelligence (AI)** – AI‑focused products and services. [Source 1]",
+      "kw_overlap": 0.6,
+      "ctx_coverage": 0.6571428571428571,
+      "hallucination_raw": 0.34285714285714286,
+      "hallucination_cw": 0.3793103448275862,
+      "verbosity_score": 0.0,
+      "answer_words": 75,
+      "ctx_tokens": 600,
+      "latency_s": 4.347759962081909
+    }
+  ],
+  "unanswerable_questions": [
+    {
+      "idx": 1,
+      "label": "U01",
+      "question": "What is Amazon net profit margin for the last quarter?",
+      "answer": "Sorry, I couldn't find this information. Please try another question.",
+      "abstained": true,
+      "answer_words": 10,
+      "latency_s": 2.1176629066467285
+    },
+    {
+      "idx": 2,
+      "label": "U02",
+      "question": "How many Amazon employees work in Germany specifically?",
+      "answer": "Sorry, I couldn't find this information. Please try another question.",
+      "abstained": true,
+      "answer_words": 10,
+      "latency_s": 2.596348285675049
+    },
+    {
+      "idx": 3,
+      "label": "U03",
+      "question": "What programming language is the Alexa backend written in?",
+      "answer": "Sorry, I couldn't find this information. Please try another question.",
+      "abstained": true,
+      "answer_words": 10,
+      "latency_s": 2.572348117828369
+    }
+  ]
+}
