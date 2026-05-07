@@ -1,6 +1,6 @@
 import { getBrowserToken } from './storage.js'
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL
+const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 function _extractDetail(detail) {
   if (!detail) return null
   if (typeof detail === 'string') return detail
