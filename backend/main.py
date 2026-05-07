@@ -64,9 +64,12 @@ app = FastAPI(
     description="AI website analyst",
 )
 
+_origins_env = os.getenv("FRONTEND_ORIGIN", "*")
+_allowed_origins = [o.strip() for o in _origins_env.split(",") if o.strip()] or ["*"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[os.getenv("FRONTEND_ORIGIN", "*")],
+    allow_origins=_allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
